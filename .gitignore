@@ -1,0 +1,11 @@
+# Excel / Office 暫存鎖定檔
+~$*
+
+# 產出與日誌
+/output/
+/logs/
+/backup/
+
+# 建置產物
+target/
+*.class
