@@ -1,6 +1,9 @@
 # Excel / Office 暫存鎖定檔
 ~$*
 
+# 執行環境：實際匯入資料含個資，不入版控
+/input/
+
 # 產出與日誌
 /output/
 /logs/
@@ -9,3 +12,11 @@
 # 建置產物
 target/
 *.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
