@@ -4,9 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 專案狀態
 
-**目前無任何程式碼**，`docs/` 以外只有 `README.md`（單行標題）。這是一個**規格先行**的專案：需求分析已完成、所有阻斷級爭議已結案，下一步是產出 REQ / DESIGN / TASK / TEST，然後才開始實作。
+規格先行的專案：需求分析、REQ / DESIGN / TASK / TEST 皆已完成，**實作已完成並通過驗收**（TASK 之 T-01 ~ T-21；T-22 取代產出範例檔待業務方確認）。
 
-交付目標：一支讀取共保系統匯出的 CSV、套用 Excel 樣板、產出兩張月帳單報表（T 字帳、彙總表）的程式。
+交付物：一支讀取共保系統匯出的 CSV、套用 Excel 樣板、產出兩張月帳單報表（T 字帳、彙總表）的程式，位於 `src/main/java/com/insurance/coinsurance/`。
+
+## 常用指令
+
+```
+build.bat                          建置 fat jar（內含指定 JDK 17 之 JAVA_HOME）
+run.bat [--year=115 --month=5]     CLI 批次執行
+mvnw.cmd -o test                   執行 38 項測試（-o 離線，相依已在本機倉庫）
+mvnw.cmd clean package -DskipTests
+```
+
+`JAVA_HOME` 於本機為 `C:\Program Files\Amazon Corretto\jdk17.0.18_9`（PATH 上的預設 java 是 JDK 25）。
+執行環境目錄 `config/` `templet/` `input/` `output/` `backup/` `logs/` 位於專案根目錄；`input/`、`output/`、`backup/`、`logs/` 未納入版控。
+
+## 程式架構
+
+分層：`entry`（CLI / JavaFX）→ `service`（`ReportGenerationService`，唯一對外入口）→ `config` / `reader` / `validator` / `calculator` / `writer`，共用 `model` / `constant` / `util` / `exception`。
+
+改動計算或輸出邏輯前，務必先讀下方「領域地雷」——每一條都有對應的測試在把關（`StaticGuardTest` 甚至會掃描原始碼）。
+
+- **`FxLauncher` 是 fat jar 的主類別，刻意不繼承 `javafx.application.Application`**；直接繼承會讓 JavaFX 以「runtime components are missing」啟動失敗。
+- **`CliRunner` 刻意不是 `CommandLineRunner`**：CLI 與 GUI 共用同一個 Spring 容器，自動執行會讓 GUI 一開就跑批次。
+- **`ReportGenerationService` 不得 `System.exit()` 或直接印訊息**，只回傳 `ExecutionResult`；中止行為由進入點決定。
+- **捨入只能經 `calculator/RoundingUtil`**（固定 HALF_UP）。
 
 ## 文件體系
 
@@ -59,11 +82,11 @@ T 字帳寫入位置（規格書 v1.0 曾整體偏一列，已修正）：`I3` �
 - **Git Bash 沒有 `iconv`**。Big5 解碼用 Python 的 `encoding='cp950'`，或 PowerShell 的 `[System.Text.Encoding]::GetEncoding(950)`。
 - JDK 25 與 JDK 17 已安裝；**`mvn` 不在 PATH**，用專案內的 `mvnw.cmd`。
 
-## 預定技術堆疊
+## 技術堆疊
 
-Java 17 + Spring Boot + Apache POI + JavaFX（GUI），打包成 fat jar 可雙擊執行，同時提供 CLI 批次進入點；兩者共用同一核心服務層。
+Java 17 + Spring Boot 3.5.0 + Apache POI 5.3.0 + JavaFX 21.0.5（`win` classifier），打包成 fat jar 可雙擊執行，同時提供 CLI 批次進入點；兩者共用同一核心服務層。
 
-沿用 `D:\project\retained-premium-report-transformer` 的分層架構（`config` / `model` / `reader` / `writer` / `service` / `constant` / `exception`）與 `build.bat` / `run.bat` 慣例。另一參考專案 `D:\project\excel-report-integration-engine` 的 `logs/report.json` 執行報告作法，本專案要求比照實作。
+分層架構沿用 `D:\project\retained-premium-report-transformer`（`config` / `model` / `reader` / `writer` / `service` / `constant` / `exception`）與 `build.bat` / `run.bat` 慣例；`logs/report.json` 執行報告作法比照 `D:\project\excel-report-integration-engine`。
 
 ## 溝通與文件慣例
 

@@ -6,13 +6,13 @@
 | --- | --- |
 | 文件名稱 | 任務拆分表 |
 | 文件代碼 | Health-and-Injury-Co-Insurance-System_TASK_任務拆分 |
-| 目前版本 | **v1.0** |
+| 目前版本 | **v1.1** |
 | 建立日期 | 2026-08-03 |
-| 最後更新 | 2026-08-03 |
+| 最後更新 | 2026-08-04 |
 | 作者 | AI 分析 |
 | 狀態 | Draft |
 
-> **文件維護原則**：單一常駐文件，改版直接更新本檔，版本歷程見 §7。
+> **文件維護原則**：單一常駐文件，改版直接更新本檔，版本歷程見 §8。
 
 **依據**：`..._REQ_需求規格.md`（v1.0）、`..._DESIGN_系統設計.md`（v1.0）、`..._RULE_規則定義.md`（v3.2）。
 
@@ -367,8 +367,54 @@ T-01 ─► T-14 備份與清除 ───────────────�
 
 ---
 
-## 7. 版本紀錄
+## 7. 實作完成狀態（2026-08-04）
+
+| 任務 | 狀態 | 實際產出／備註 |
+| --- | --- | --- |
+| T-01 專案骨架 | ✔ | `pom.xml`（Spring Boot 3.5.0 / Java 17 / POI 5.3.0 / JavaFX 21.0.5）、`mvnw.cmd`、`logback-spring.xml`、`config/application.yml`、`build.bat`、`run.bat` |
+| T-02 常數與模型 | ✔ | `PremiumColumn`（19）、`ClaimColumn`（22，含個資遮蔽標記）、`TAccountCell`、`SummaryCell`、`CoInsuranceConstants`、全部 model |
+| T-03 設定檔讀取 | ✔ | `SettingReader` + `AppConfig`；實測 16 家、合計 100%、末筆 國泰產險/N15/6% |
+| T-04 CSV 讀取 | ✔ | `CsvReader`（Big5 固定解碼、表頭驗證、RFC 4180 引號支援）+ 兩支 Reader；實測 2,193 / 14 列 |
+| T-05 欄位檢核 | ✔ | `PremiumValidator`、`ClaimValidator`、`FieldRules`、`ErrorCollector`；樣本零錯誤 |
+| T-06 年月檢核 | ✔ | `PeriodValidator`，以數值比對 |
+| T-07 保費／賠款彙總 | ✔ | M1 = 350,123、M3 = 126,931；反向測試確認未篩年度得 197,722 |
+| T-08 捨入工具 | ✔ | `RoundingUtil`；`StaticGuardTest` 掃描確保他處未直接使用 `RoundingMode` / `setScale` |
+| T-09 分攤（差額法） | ✔ | 非 N19 合計 308,105、N19 = 42,018；列序反轉測試結果不變 |
+| T-10 共保管理費 | ✔ | M7 = 17,504、N05 = 1,050、N19 = 2,101、Balance Due = 205,688；含捨入順序反向測試 |
+| T-11 T 字帳寫入 | ✔ | I3 單格、P4 只寫年、O4 未覆寫；G6/O6/G14/G20/G21/O21 皆符 |
+| T-12 彙總表寫入 | ✔ | A 欄不覆寫、依名稱查表、F22 = `=-1*$B$23-SUM(F7:F21)`、合計列動態定位、F27 未寫入 |
+| T-13 儲存格格式 | ✔ | `ExcelStyleHelper` 以「原樣式→新樣式」快取共用 `CellStyle`，保留樣板框線 |
+| T-14 備份與清除 | ✔ | `BackupService`；重複執行測試確認前次輸出進入 `backup/{YYYMM}/{時間戳}/` |
+| T-15 執行報告 | ✔ | `ReportJsonWriter` + `MaskUtil`；檢核失敗仍產出 |
+| T-16 服務編排 | ✔ | `ReportGenerationService`，含 R-CALC-16 三組一致性檢查；不 `System.exit()`、不直接印訊息 |
+| T-17 CLI | ✔ | `CliRunner`，`--year` / `--month` / `--mode=cli`，exit code 0/1/2/3 |
+| T-18 GUI | ✔ | `FxLauncher`（不繼承 `Application`）+ `FxApplication` + `MainController`（程式化版面） |
+| T-19 單元測試 | ✔ | 見下方測試彙總 |
+| T-20 整合與反向測試 | ✔ | 端到端測試以 POI `XSSFFormulaEvaluator` 實際求值產出檔公式後比對 |
+| T-21 打包與部署驗證 | ✔ | fat jar 44 MB；CLI 與 GUI 皆實測可執行；`README.md` 已撰寫 |
+| T-22 更新產出範例 | **待業務方確認** | 依本任務風險欄「須經業務方確認後才可取代原始參考檔」，故未執行；程式首次實跑輸出已驗證與基準值一致 |
+
+**測試彙總**：38 項全數通過。
+
+| 測試類別 | 項數 | 涵蓋 |
+| --- | --- | --- |
+| `ColumnDefinitionTest` | 4 | 19 / 22 欄索引與表頭逐項斷言、重複「日額」以索引區分、個資欄位標記 |
+| `RoundingUtilTest` | 3 | HALF_UP vs HALF_EVEN 區辨、負數遠離 0 |
+| `CalculationTest` | 7 | M1~M8、差額法、代號判定、捨入順序反向測試 |
+| `SettingReaderTest` | 4 | 設定檔內容、參數覆寫、合計 105% 中止、缺檔中止 |
+| `ReaderAndValidatorTest` | 10 | Big5 解碼、表頭錯置、缺檔行為、樣本零錯誤、出生日期 6 碼、多筆錯誤蒐集、年月比對 |
+| `ReportGenerationServiceTest` | 5 | 端到端、理賠檔缺檔、備份、名稱查無對應、年月不符 |
+| `StaticGuardTest` | 2 | 捨入集中化、測試碼未引用產出範例舊值 |
+
+**與 DESIGN 之刻意差異（1 項）**
+
+`CliRunner` 未實作 `CommandLineRunner`（DESIGN §3.1 原標示為 `CommandLineRunner`）。原因：CLI 與 GUI 共用同一個 Spring 容器，若採 `CommandLineRunner` 會在 GUI 模式啟動時自動執行批次。改由 `FxLauncher` 依 `--mode=cli` 明確呼叫，行為與驗收條件不變。
+
+---
+
+## 8. 版本紀錄
 
 | 版本 | 日期 | 內容 |
 | --- | --- | --- |
-| **v1.0** | **2026-08-03** | 初版；22 項任務分六階段，含前置依賴、預期輸出、可測試之驗收條件、風險與優先級；附依賴關係圖與 10 項風險彙總 |
+| v1.0 | 2026-08-03 | 初版；22 項任務分六階段，含前置依賴、預期輸出、可測試之驗收條件、風險與優先級；附依賴關係圖與 10 項風險彙總 |
+| **v1.1** | **2026-08-04** | 新增 §7 實作完成狀態：T-01 ~ T-21 完成、T-22 待業務方確認；附 38 項測試彙總與 1 項與 DESIGN 之刻意差異說明 |

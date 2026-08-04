@@ -1,0 +1,13 @@
+# 程式技術性設定（DESIGN §7.2）。一般使用者無需修改。
+# 共保公司名稱／代號／認受成分與設定年月，維護於同目錄之 application.xlsx。
+app:
+  setting-file: ./config/application.xlsx
+  template-dir: ./templet
+  input-dir: ./input
+  output-dir: ./output
+  backup-dir: ./backup
+  log-dir: ./logs
+  # 備份保留月數（R-PATH-06）
+  backup-retention-months: 3
+  # 輸出通道之個資遮蔽（R-RUN-06）
+  mask-personal-data: true

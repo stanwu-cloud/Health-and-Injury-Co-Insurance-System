@@ -1,0 +1,12 @@
+# cmd.exe 只認 CRLF；批次檔若被轉成 LF 會出現「'xxx' 不是內部或外部命令」之詭異錯誤
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Maven wrapper 之 shell script 必須維持 LF
+mvnw text eol=lf
+
+# 二進位檔不做換行轉換
+*.xlsx binary
+*.docx binary
+*.jar binary
+*.csv -text

@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: health-and-injury-co-insurance-system
+  main:
+    web-application-type: none
+    banner-mode: off
+
+app:
+  setting-file: ./config/application.xlsx
+  template-dir: ./templet
+  input-dir: ./input
+  output-dir: ./output
+  backup-dir: ./backup
+  log-dir: ./logs
+  backup-retention-months: 3
+  mask-personal-data: true
+
+logging:
+  level:
+    root: INFO
+    com.insurance.coinsurance: INFO
