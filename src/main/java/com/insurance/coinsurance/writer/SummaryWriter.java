@@ -145,14 +145,14 @@ public class SummaryWriter {
             SheetWriteUtil.cellAt(sheet, row - 1, SummaryCell.COL_SHARE)
                     .setCellValue(company.share().doubleValue());
 
-            setFormula(sheet, row, SummaryCell.COL_NET_RECEIVABLE, "C%d+B%d".formatted(row, row));
+            setFormula(sheet, row, SummaryCell.COL_NET_RECEIVABLE, "B%d-C%d".formatted(row, row));
             if (company.isReinsurer()) {
                 reinsurerRow = row;
             } else {
                 setFormula(sheet, row, SummaryCell.COL_ALLOCATED_PREMIUM,
                         "ROUND(($B$%d*E%d*-1),0)".formatted(totalRow, row));
                 setFormula(sheet, row, SummaryCell.COL_ALLOCATED_CLAIM,
-                        "ROUND(($C$%d*E%d*-1),0)".formatted(totalRow, row));
+                        "ROUND($C$%d*E%d,0)".formatted(totalRow, row));
             }
             setFormula(sheet, row, SummaryCell.COL_NET_ALLOCATED, "F%d+G%d".formatted(row, row));
             setFormula(sheet, row, SummaryCell.COL_MGMT_FEE,
@@ -179,7 +179,7 @@ public class SummaryWriter {
         setFormula(sheet, reinsurerRow, SummaryCell.COL_ALLOCATED_PREMIUM,
                 "-1*$B$%d-SUM(%s)".formatted(totalRow, premiumRanges));
         setFormula(sheet, reinsurerRow, SummaryCell.COL_ALLOCATED_CLAIM,
-                "-1*$C$%d-SUM(%s)".formatted(totalRow, claimRanges));
+                "ROUND($C$%d-SUM(%s),0)".formatted(totalRow, claimRanges));
     }
 
     /** 產生排除指定列之區間字串，例 {@code F7:F21} 或 {@code F7:F9,F11:F22}。 */
