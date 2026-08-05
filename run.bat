@@ -2,21 +2,47 @@
 chcp 65001 >nul
 
 REM 切到本檔所在目錄，雙擊執行時亦可正確解析 config / input / output 等相對路徑
-pushd "%~dp0"
-
 echo ========================================
-echo  傷害及健康保險共保月帳單報表產生系統
+echo   自動執行 Build + Run
 echo ========================================
 echo.
 
-REM ===== 指定 Java 17 =====
-if exist "C:\Program Files\Amazon Corretto\jdk17.0.18_9" (
-    set "JAVA_HOME=C:\Program Files\Amazon Corretto\jdk17.0.18_9"
+REM ===== 指定 Java =====
+set "JAVA_EXE=C:\Users\user\.jdks\corretto-17.0.18\bin\java.exe"
+
+REM ===== 檢查 Java =====
+if not exist "%JAVA_EXE%" (
+    echo [錯誤] 找不到 Java：
+    echo %JAVA_EXE%
+    pause
+    exit /b 1
 )
+
+REM ===== 設定 JAVA_HOME =====
+for %%i in ("%JAVA_EXE%") do set "JAVA_HOME=%%~dpi"
+set "JAVA_HOME=%JAVA_HOME:~0,-1%"
+for %%i in ("%JAVA_HOME%") do set "JAVA_HOME=%%~dpi"
+set "JAVA_HOME=%JAVA_HOME:~0,-1%"
+
 set "PATH=%JAVA_HOME%\bin;%PATH%"
 
 echo 使用 Java：
-java -version
+"%JAVA_EXE%" -version
+echo.
+
+REM ========================================
+REM Step 1. Build
+REM ========================================
+echo [Step 1] 編譯中...
+call mvnw.cmd clean package -DskipTests -q
+
+if %ERRORLEVEL% neq 0 (
+    echo ❌ 編譯失敗，停止執行
+    pause
+    exit /b 1
+)
+
+echo ✅ 編譯成功！
 echo.
 
 set "JAR_FILE=%~dp0target\health-and-injury-co-insurance-system.jar"
