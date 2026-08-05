@@ -18,7 +18,7 @@ import java.util.Map;
 @Component
 public class ManagementFeeCalculator {
 
-    /** M6 各公司應繳共保管理會費 = {@code ROUND(應分配保費 × 5%)}。 */
+    /** M6 各公司應繳共保管理會費 = {@code ROUND(應分配保費 × 6%)}。 */
     public Map<String, Long> managementFeeByCompany(Map<String, Long> allocatedPremium, Setting setting) {
         Map<String, Long> fees = new LinkedHashMap<>();
         for (CoInsuranceCompany company : setting.companies()) {

@@ -59,8 +59,8 @@ public final class CoInsuranceConstants {
      */
     public static final String REINSURER_CODE = "N19";
 
-    /** 共保管理費費率 5%。 */
-    public static final BigDecimal MANAGEMENT_FEE_RATE = new BigDecimal("0.05");
+    /** 共保管理費費率 6%。 */
+    public static final BigDecimal MANAGEMENT_FEE_RATE = new BigDecimal("0.06");
 
     /** 民國年轉西元年之差值。 */
     public static final int ROC_YEAR_OFFSET = 1911;
