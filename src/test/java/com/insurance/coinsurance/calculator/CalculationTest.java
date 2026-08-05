@@ -133,6 +133,6 @@ class CalculationTest {
                 CoInsuranceConstants.MANAGEMENT_FEE_RATE);
 
         assertEquals(TestFixtures.TOTAL_MANAGEMENT_FEE, correct);
-        assertNotEquals(correct, sumFirst, "先加總再乘 5% 之結果應與逐家捨入後加總不同");
+        assertNotEquals(correct, sumFirst, "先加總再乘 6% 之結果應與逐家捨入後加總不同");
     }
 }
