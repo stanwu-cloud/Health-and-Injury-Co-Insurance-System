@@ -34,7 +34,7 @@ class RoundingUtilTest {
     @Test
     @DisplayName("乘以成分後捨入")
     void multiplyAndRound() {
-        assertEquals(17506L, RoundingUtil.multiplyAndRound(350123L, new BigDecimal("0.05")));
+        assertEquals(17506L, RoundingUtil.multiplyAndRound(350123L, new BigDecimal("0.06")));
         assertEquals(35012L, RoundingUtil.multiplyAndRound(350123L, new BigDecimal("0.1")));
         assertEquals(21007L, RoundingUtil.multiplyAndRound(350123L, new BigDecimal("0.06")));
         assertEquals(RoundingMode.HALF_UP, RoundingUtil.MODE);

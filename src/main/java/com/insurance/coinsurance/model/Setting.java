@@ -34,7 +34,7 @@ public record Setting(int year, int month, List<CoInsuranceCompany> companies) {
         return "%02d".formatted(month);
     }
 
-    /** 公司名稱 → 公司，供彙總表依樣板 A 欄名稱查表。 */
+    /** 公司名稱 → 公司，供彙整表依樣板 A 欄名稱查表。 */
     public Map<String, CoInsuranceCompany> byName() {
         Map<String, CoInsuranceCompany> map = new LinkedHashMap<>();
         companies.forEach(company -> map.put(company.name(), company));

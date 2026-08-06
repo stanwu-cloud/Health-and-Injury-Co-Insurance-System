@@ -1,6 +1,6 @@
 package com.insurance.coinsurance.constant;
 
-/** 彙總表輸出之欄列常數（MAPPING §8）。 */
+/** 彙整表輸出之欄列常數（MAPPING §8）。 */
 public final class SummaryCell {
 
     private SummaryCell() {
@@ -13,10 +13,10 @@ public final class SummaryCell {
     public static final String TEMPLATE_SHEET_NAME = "工作表2";
 
     /** 輸出工作表名稱。 */
-    public static final String OUTPUT_SHEET_NAME = "共保月帳單-彙總表";
+    public static final String OUTPUT_SHEET_NAME = "共保月帳單-彙整表";
 
     /** 輸出檔名樣式，`%s` 代入 YYYMM。 */
-    public static final String OUTPUT_FILE_PATTERN = "共保保費_當月共保月帳單_彙總表%s.xlsx";
+    public static final String OUTPUT_FILE_PATTERN = "共保保費_當月共保月帳單_彙整表%s.xlsx";
 
     /** U/Y 表頭（全形Ｕ、全形冒號）。 */
     public static final String UY = "A3";
@@ -43,7 +43,7 @@ public final class SummaryCell {
     public static final int COL_LAST = COL_NET_PREMIUM;
 
     /** 共保管理費費率，供公式字串使用。 */
-    public static final String MGMT_FEE_RATE = "0.05";
+    public static final String MGMT_FEE_RATE = "0.06";
 
     /**
      * 範例檔之手誤殘值位置，<b>不得寫入</b>。

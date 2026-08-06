@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 /**
  * 共保公司（設定檔一列）。
  *
- * @param name  公司名稱，供彙總表以樣板 A 欄名稱查表
+ * @param name  公司名稱，供彙整表以樣板 A 欄名稱查表
  * @param code  公司代號（3 碼）
  * @param share 認受成分，<b>小數</b>（0.05 = 5%）
  */

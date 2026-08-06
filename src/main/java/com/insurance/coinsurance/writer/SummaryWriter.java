@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 彙總表寫入（R-OUT-02 / R-OUT-06）。
+ * 彙整表寫入（R-OUT-02 / R-OUT-06）。
  *
  * <p>列順序<b>以樣板 A 欄為準</b>（A 欄不覆寫），逐列以公司名稱查設定檔取得代號與成分；
  * 查無對應即中止並回報列號與名稱（R-EXC-06）。
@@ -45,7 +45,7 @@ public class SummaryWriter {
     public Path write(Setting setting, CalculationResult result, Path outputDir) {
         Path template = appConfig.templateDirPath().resolve(SummaryCell.TEMPLATE_FILE_NAME);
         if (!Files.exists(template)) {
-            throw new FatalException("[R-PATH-05] 找不到彙總表樣板：%s".formatted(template.toAbsolutePath()));
+            throw new FatalException("[R-PATH-05] 找不到彙整表樣板：%s".formatted(template.toAbsolutePath()));
         }
 
         Path output = outputDir.resolve(
@@ -56,7 +56,7 @@ public class SummaryWriter {
 
             Sheet sheet = workbook.getSheet(SummaryCell.TEMPLATE_SHEET_NAME);
             if (sheet == null) {
-                throw new FatalException("[R-PATH-05] 彙總表樣板缺少工作表「%s」"
+                throw new FatalException("[R-PATH-05] 彙整表樣板缺少工作表「%s」"
                         .formatted(SummaryCell.TEMPLATE_SHEET_NAME));
             }
             ExcelStyleHelper styleHelper = new ExcelStyleHelper(workbook);
@@ -81,14 +81,14 @@ public class SummaryWriter {
             try (OutputStream out = Files.newOutputStream(output)) {
                 workbook.write(out);
             }
-            log.info("彙總表產出完成：{}（明細 {} 列，合計列第 {} 列）",
+            log.info("彙整表產出完成：{}（明細 {} 列，合計列第 {} 列）",
                     output.toAbsolutePath(), names.size(), totalRow);
             return output;
 
         } catch (FatalException e) {
             throw e;
         } catch (Exception e) {
-            throw new FatalException("[R-OUT-02] 彙總表產出失敗：%s（%s）"
+            throw new FatalException("[R-OUT-02] 彙整表產出失敗：%s（%s）"
                     .formatted(output.toAbsolutePath(), e.getMessage()), e);
         }
     }
@@ -113,7 +113,7 @@ public class SummaryWriter {
             rowIndex++;
         }
         if (names.isEmpty()) {
-            throw new FatalException("[R-OUT-02] 彙總表樣板自第 %d 列起之 A 欄無任何公司名稱"
+            throw new FatalException("[R-OUT-02] 彙整表樣板自第 %d 列起之 A 欄無任何公司名稱"
                     .formatted(SummaryCell.DETAIL_FIRST_ROW));
         }
         return names;
@@ -135,7 +135,7 @@ public class SummaryWriter {
             CoInsuranceCompany company = byName.get(name);
             if (company == null) {
                 throw new FatalException(
-                        "[R-EXC-06] 彙總表樣板第 %d 列之公司名稱「%s」查無設定檔對應，請確認 config/application.xlsx"
+                        "[R-EXC-06] 彙整表樣板第 %d 列之公司名稱「%s」查無設定檔對應，請確認 config/application.xlsx"
                                 .formatted(row, name));
             }
 
@@ -162,7 +162,7 @@ public class SummaryWriter {
         }
 
         if (reinsurerRow < 0) {
-            throw new FatalException("[R-EXC-06] 彙總表樣板之公司清單缺少中央再保（代號 %s）"
+            throw new FatalException("[R-EXC-06] 彙整表樣板之公司清單缺少中央再保（代號 %s）"
                     .formatted(CoInsuranceConstants.REINSURER_CODE));
         }
         return reinsurerRow;
@@ -192,7 +192,7 @@ public class SummaryWriter {
             parts.add(range(column, excludedRow + 1, lastRow));
         }
         if (parts.isEmpty()) {
-            throw new FatalException("[R-OUT-02] 彙總表僅有中央再保一列，無法以差額法計算");
+            throw new FatalException("[R-OUT-02] 彙整表僅有中央再保一列，無法以差額法計算");
         }
         return String.join(",", parts);
     }

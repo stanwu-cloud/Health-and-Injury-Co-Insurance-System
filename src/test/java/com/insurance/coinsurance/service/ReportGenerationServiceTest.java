@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ReportGenerationServiceTest {
 
     private static final String T_ACCOUNT = "共保保費_當月共保月帳單_T字帳報表11505.xlsx";
-    private static final String SUMMARY = "共保保費_當月共保月帳單_彙總表11505.xlsx";
+    private static final String SUMMARY = "共保保費_當月共保月帳單_彙整表11505.xlsx";
 
     private static ReportGenerationService serviceFor(AppConfig config) {
         return new ReportGenerationService(config, new SettingReader(config),
@@ -99,10 +99,10 @@ class ReportGenerationServiceTest {
             }
         }
 
-        // ── 彙總表（公式先求值再比對） ───────────────────────
+        // ── 彙整表（公式先求值再比對） ───────────────────────
         try (XSSFWorkbook workbook = openXssf(outputDir.resolve(SUMMARY))) {
             Sheet sheet = workbook.getSheetAt(0);
-            assertEquals("共保月帳單-彙總表", sheet.getSheetName());
+            assertEquals("共保月帳單-彙整表", sheet.getSheetName());
             assertEquals("Ｕ/Y：2026", stringAt(sheet, "A3"));
             assertEquals("資料統計年月：115年05月", stringAt(sheet, "E3"));
 
@@ -209,7 +209,7 @@ class ReportGenerationServiceTest {
         assertTrue(result.message().contains("R-EXC-06"), result.message());
         assertTrue(result.message().contains("台灣人壽"), result.message());
         assertFalse(Files.exists(sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH)
-                .resolve(SUMMARY)), "中止時不得產出彙總表");
+                .resolve(SUMMARY)), "中止時不得產出彙整表");
     }
 
     @Test

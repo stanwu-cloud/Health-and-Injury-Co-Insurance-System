@@ -219,7 +219,7 @@ public class ReportGenerationService {
     }
 
     /**
-     * R-CALC-16：T 字帳 G6 = 彙總表 C23、O6 = B23、G14 = I23。
+     * R-CALC-16：T 字帳 G6 = 彙整表 C23、O6 = B23、G14 = I23。
      * 不相等視為程式缺陷，中止並記錄。
      */
     private void verifyConsistency(Setting setting, CalculationResult calculation) {
@@ -232,9 +232,9 @@ public class ReportGenerationService {
         long summaryFeeTotal = calculation.managementFee().values().stream()
                 .mapToLong(Long::longValue).sum();
 
-        checkEqual("共保保費（T 字帳 O6 vs 彙總表 B23）", calculation.totalPremium(), summaryPremiumTotal);
-        checkEqual("攤付共保賠款（T 字帳 G6 vs 彙總表 C23）", calculation.totalClaim(), summaryClaimTotal);
-        checkEqual("共保管理費（T 字帳 G14 vs 彙總表 I23）", calculation.totalManagementFee(), summaryFeeTotal);
+        checkEqual("共保保費（T 字帳 O6 vs 彙整表 B23）", calculation.totalPremium(), summaryPremiumTotal);
+        checkEqual("攤付共保賠款（T 字帳 G6 vs 彙整表 C23）", calculation.totalClaim(), summaryClaimTotal);
+        checkEqual("共保管理費（T 字帳 G14 vs 彙整表 I23）", calculation.totalManagementFee(), summaryFeeTotal);
         log.info("跨報表一致性檢查通過");
     }
 
