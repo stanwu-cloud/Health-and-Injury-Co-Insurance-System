@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 規格先行的專案，分兩階段：
 
 - **第一階段（`dev`，已上線）**：REQ / DESIGN / TASK / TEST 皆已完成，**實作已完成並通過驗收**（T-01 ~ T-21；T-22 取代產出範例檔待業務方確認）。交付物為一支讀取共保系統匯出的 CSV、套用 Excel 樣板、產出兩張月帳單報表（T 字帳、彙整表）的程式，位於 `src/main/java/com/insurance/coinsurance/`。
-- **第二階段（`feature/phase-two`，進行中）**：新增第三張報表「**當月賠款月帳單－T字帳**」——只讀理賠檔，**排除簽單年度 == 設定年**，其餘每個簽單年度各產出一份。**M1 ~ M3 已完成**：P-01 ~ P-11 全數結案、MAPPING / RULE / REQ / DESIGN 均已納入第二階段；下一步是 M4（TASK / TEST），再進 M5 實作。要動手前先讀 `..._LOG_第二階段問題追蹤清單.md` §5、MAPPING §10、RULE 之 R-PATH-07 / R-CALC-17~20 / R-OUT-08~09、DESIGN §4.2 與 D10 ~ D14。
+- **第二階段（`feature/phase-two`，進行中）**：新增第三張報表「**當月賠款月帳單－T字帳**」——只讀理賠檔，**排除簽單年度 == 設定年**，其餘每個簽單年度各產出一份。**M1 ~ M4 已完成**：P-01 ~ P-11 全數結案，MAPPING / RULE / REQ / DESIGN / TASK / TEST 均已納入第二階段。**下一步是 M5 實作**，依 TASK 階段七之 T-23 ~ T-27 順序進行。動手前先讀 `..._LOG_第二階段問題追蹤清單.md` §5、MAPPING §10、RULE 之 R-PATH-07 / R-CALC-17~20 / R-OUT-08~09、DESIGN §4.2 與 D10 ~ D14、TASK 之 K11 ~ K15。
 
 第二階段一律在 `feature/phase-two` 開發，驗收後才合回 `dev`。
 
