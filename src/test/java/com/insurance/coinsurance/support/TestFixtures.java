@@ -20,7 +20,7 @@ import java.util.stream.Stream;
 /**
  * 測試共用之基準輸入。
  *
- * <p>資料來源為 {@code docs/規格書/檔案位子範例/}（R-04 已同步，可直接使用）。
+ * <p>資料來源為 {@code docs/規格來源/第一階段-共保月帳單/檔案位子範例/}（R-04 已同步，可直接使用）。
  * <b>驗收數值一律引用文件基準值，不得比對 {@code 產出範例/} 之金額（R-06）。</b>
  */
 public final class TestFixtures {
@@ -41,7 +41,7 @@ public final class TestFixtures {
     /** 未篩簽單年度之錯誤結果——反向測試用。 */
     public static final long CLAIM_WITHOUT_YEAR_FILTER = 197_722L;
 
-    private static final Path SAMPLE_ROOT = Path.of("docs", "規格書", "檔案位子範例");
+    private static final Path SAMPLE_ROOT = Path.of("docs", "規格來源", "第一階段-共保月帳單", "檔案位子範例");
 
     private TestFixtures() {
     }

@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <ol>
  *   <li>捨入只能經 {@code RoundingUtil}——他處直接使用 {@code RoundingMode} 或
  *       {@code setScale} 會誤用 HALF_EVEN 而產生 ±1 元帳差</li>
- *   <li>驗收基準不得取自 {@code docs/規格書/產出範例/}——該兩份範例之管理費率仍為 5%，
+ *   <li>驗收基準不得取自 {@code docs/規格來源/第一階段-共保月帳單/產出範例/}——該兩份範例之管理費率仍為 5%，
  *       且不得回頭引用 12% 版設定檔之舊基準（R-06）</li>
  * </ol>
  */
