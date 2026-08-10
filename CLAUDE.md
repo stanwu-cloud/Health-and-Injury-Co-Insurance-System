@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 規格先行的專案，分兩階段：
 
 - **第一階段（`dev`，已上線）**：REQ / DESIGN / TASK / TEST 皆已完成，**實作已完成並通過驗收**（T-01 ~ T-21；T-22 取代產出範例檔待業務方確認）。交付物為一支讀取共保系統匯出的 CSV、套用 Excel 樣板、產出兩張月帳單報表（T 字帳、彙整表）的程式，位於 `src/main/java/com/insurance/coinsurance/`。
-- **第二階段（`feature/phase-two`，進行中）**：新增第三張報表「**當月賠款月帳單－T字帳**」——只讀理賠檔，**排除簽單年度 == 設定年**，其餘每個簽單年度各產出一份。**P-01 ~ P-11 已由業務方全數回覆結案（M1 完成），M2 起可動工**。定案規則見 `..._LOG_第二階段問題追蹤清單.md` §5。
+- **第二階段（`feature/phase-two`，進行中）**：新增第三張報表「**當月賠款月帳單－T字帳**」——只讀理賠檔，**排除簽單年度 == 設定年**，其餘每個簽單年度各產出一份。**P-01 ~ P-11 已全數結案（M1）、MAPPING / RULE 已納入第二階段規則（M2）**；下一步是 M3（REQ / DESIGN）。定案規則見 `..._LOG_第二階段問題追蹤清單.md` §5、MAPPING §10、RULE 之 R-PATH-07 / R-CALC-17~20 / R-OUT-08~09。
 
 第二階段一律在 `feature/phase-two` 開發，驗收後才合回 `dev`。
 
@@ -42,7 +42,7 @@ mvnw.cmd clean package -DskipTests
 | 檔案 | 內容 |
 | --- | --- |
 | `..._LOG_現況分析與輸入輸出盤點.md` | 實測事實基線、樣板/設定檔逐格內容、驗算結果、34 項已定案業務決策（B01–B34） |
-| `..._MAPPING_欄位對照.md` | CSV 欄位索引、中間模型、兩張報表的儲存格對照、report.json 規格 |
+| `..._MAPPING_欄位對照.md` | CSV 欄位索引、中間模型（M1~M8 一階段、M9~M11 二階段）、三張報表的儲存格對照（§7 / §8 / **§10**）、report.json 規格 |
 | `..._RULE_規則定義.md` | 可實作規則（`R-PATH-` / `R-VAL-` / `R-CALC-` / `R-OUT-` / `R-EXC-` / `R-RUN-`）與執行順序 |
 | `..._LOG_問題追蹤清單.md` | 第一階段：Q-01~Q-26、N-01~N-11 結案狀態、R-01~R-09 殘留事項，以及 C-01~C-05 實作後業務調整 |
 | `..._LOG_第二階段問題追蹤清單.md` | **第二階段**：P-01~P-11 待確認爭議（附建議方案）、M0~M6 里程碑、113/114 驗收基準 |
