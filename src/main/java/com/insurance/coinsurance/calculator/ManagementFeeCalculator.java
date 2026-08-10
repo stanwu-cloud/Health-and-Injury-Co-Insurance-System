@@ -12,8 +12,8 @@ import java.util.Map;
  * 共保管理費（R-CALC-07 / R-CALC-08）。
  *
  * <p><b>四捨五入順序不可調換</b>：各公司分攤保費先四捨五入（已於
- * {@link AllocationCalculator} 完成）→ 再 × 5% → 再四捨五入 → 最後加總。
- * 先加總再乘 5% 會得到不同結果（TASK K4）。
+ * {@link AllocationCalculator} 完成）→ 再 × 6% → 再四捨五入 → 最後加總。
+ * 先加總再乘 6% 會得到不同結果（TASK K4）。
  */
 @Component
 public class ManagementFeeCalculator {

@@ -9,7 +9,7 @@ import java.math.BigDecimal;
  *
  * @param name  公司名稱，供彙整表以樣板 A 欄名稱查表
  * @param code  公司代號（3 碼）
- * @param share 認受成分，<b>小數</b>（0.05 = 5%）
+ * @param share 認受成分，<b>小數</b>（0.075 = 7.5%）
  */
 public record CoInsuranceCompany(String name, String code, BigDecimal share) {
 

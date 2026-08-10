@@ -20,7 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <ol>
  *   <li>捨入只能經 {@code RoundingUtil}——他處直接使用 {@code RoundingMode} 或
  *       {@code setScale} 會誤用 HALF_EVEN 而產生 ±1 元帳差</li>
- *   <li>驗收基準不得取自 {@code docs/規格書/產出範例/}——該兩份範例之成分為舊版，金額已過時（R-06）</li>
+ *   <li>驗收基準不得取自 {@code docs/規格書/產出範例/}——該兩份範例之管理費率仍為 5%，
+ *       且不得回頭引用 12% 版設定檔之舊基準（R-06）</li>
  * </ol>
  */
 class StaticGuardTest {
@@ -48,8 +49,12 @@ class StaticGuardTest {
     @Test
     @DisplayName("測試程式不得以產出範例檔之過時金額作為基準")
     void testsDoNotUseStaleSampleAmounts() throws IOException {
-        // 產出範例檔之舊值：管理費 / Balance Due / 中央再保保費 / 中央再保賠款 / 中央再保管理費 / 15 家分攤合計
-        List<String> staleValues = List.of("17505", "205687", "24512", "8882", "1226", "325611");
+        List<String> staleValues = List.of(
+                // 產出範例檔之 5% 管理費舊值：管理費 / Balance Due / 中央再保管理費
+                "17505", "205687", "1226",
+                // 12% 版設定檔之舊基準：管理費 / Balance Due / 中央再保保費 / 中央再保賠款
+                //                     / 15 家分攤合計 / 中央再保管理費
+                "17504", "205688", "42018", "15228", "308105", "2101");
         List<String> offenders = new ArrayList<>();
 
         for (Path file : javaFiles(TEST)) {

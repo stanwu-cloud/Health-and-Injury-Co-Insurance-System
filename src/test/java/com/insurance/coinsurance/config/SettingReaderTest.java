@@ -51,7 +51,7 @@ class SettingReaderTest {
         CoInsuranceCompany reinsurer = companies.stream()
                 .filter(CoInsuranceCompany::isReinsurer).findFirst().orElseThrow();
         assertEquals("中央再保", reinsurer.name());
-        assertEquals(0, reinsurer.share().compareTo(new BigDecimal("0.12")));
+        assertEquals(0, reinsurer.share().compareTo(new BigDecimal("0.07")));
     }
 
     @Test
@@ -70,7 +70,7 @@ class SettingReaderTest {
         Path settingFile = temp.resolve("application.xlsx");
         Files.copy(TestFixtures.sampleConfig().settingFilePath(), settingFile);
 
-        // 將「全球人壽」由 5% 改回錯誤的 10%，使合計成為 105%
+        // 將「全球人壽」由 7.5% 竄改為 10%，使合計成為 102.5%
         try (InputStream in = Files.newInputStream(settingFile);
              Workbook workbook = WorkbookFactory.create(in)) {
             workbook.getSheet("工作表1").getRow(12).getCell(2).setCellValue(0.10);
@@ -84,7 +84,7 @@ class SettingReaderTest {
 
         FatalException error = assertThrows(FatalException.class,
                 () -> new SettingReader(config).load(ExecutionRequest.useSettingFile()));
-        assertTrue(error.getMessage().contains("105"), error.getMessage());
+        assertTrue(error.getMessage().contains("102.5"), error.getMessage());
         assertTrue(error.getMessage().contains("100%"), error.getMessage());
     }
 

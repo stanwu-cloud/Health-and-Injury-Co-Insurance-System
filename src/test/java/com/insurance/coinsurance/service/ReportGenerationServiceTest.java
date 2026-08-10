@@ -116,7 +116,7 @@ class ReportGenerationServiceTest {
 
             // 差額法公式須排除自身列
             assertEquals("-1*$B$23-SUM(F7:F21)", cell(sheet, "F22").getCellFormula());
-            assertEquals("-1*$C$23-SUM(G7:G21)", cell(sheet, "G22").getCellFormula());
+            assertEquals("ROUND($C$23-SUM(G7:G21),0)", cell(sheet, "G22").getCellFormula());
 
             XSSFFormulaEvaluator.evaluateAllFormulaCells(workbook);
 
@@ -126,13 +126,14 @@ class ReportGenerationServiceTest {
             assertEquals(TestFixtures.TOTAL_CLAIM, numericAt(sheet, "C23"));
             assertEquals(100L, Math.round(cell(sheet, "E23").getNumericCellValue() * 100), "E23 須為 100%");
 
+            // F 欄（應分配保費）為負值、G 欄（應攤配賠款）為正值
             assertEquals(-TestFixtures.REINSURER_ALLOCATED_PREMIUM, numericAt(sheet, "F22"));
-            assertEquals(-TestFixtures.REINSURER_ALLOCATED_CLAIM, numericAt(sheet, "G22"));
-            assertEquals(2_101L, numericAt(sheet, "I22"));
-            assertEquals(1_050L, numericAt(sheet, "I15"));
+            assertEquals(TestFixtures.REINSURER_ALLOCATED_CLAIM, numericAt(sheet, "G22"));
+            assertEquals(1_471L, numericAt(sheet, "I22"));
+            assertEquals(1_260L, numericAt(sheet, "I15"));
 
             assertEquals(-TestFixtures.TOTAL_PREMIUM, numericAt(sheet, "F23"));
-            assertEquals(-TestFixtures.TOTAL_CLAIM, numericAt(sheet, "G23"));
+            assertEquals(TestFixtures.TOTAL_CLAIM, numericAt(sheet, "G23"));
             assertEquals(TestFixtures.TOTAL_MANAGEMENT_FEE, numericAt(sheet, "I23"));
             assertEquals(TestFixtures.TOTAL_MANAGEMENT_FEE, numericAt(sheet, "J23"));
         }

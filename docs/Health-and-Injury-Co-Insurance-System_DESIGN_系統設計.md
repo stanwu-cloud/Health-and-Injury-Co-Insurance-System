@@ -6,9 +6,9 @@
 | --- | --- |
 | 文件名稱 | 系統設計書 |
 | 文件代碼 | Health-and-Injury-Co-Insurance-System_DESIGN_系統設計 |
-| 目前版本 | **v1.0** |
+| 目前版本 | **v1.1** |
 | 建立日期 | 2026-08-03 |
-| 最後更新 | 2026-08-03 |
+| 最後更新 | 2026-08-10 |
 | 作者 | AI 分析 |
 | 狀態 | Draft |
 
@@ -41,7 +41,7 @@
 
 | 模式 | 進入點 | 觸發 |
 | --- | --- | --- |
-| CLI 批次 | `java -jar xxx.jar --mode=cli [--year=115 --month=5]` 或 `run.bat` | 承辦人員或排程 |
+| CLI 批次 | `java -jar xxx.jar --mode=cli [--year=115 --month=5]` 或 `拜託執行我.bat`（含編譯） | 承辦人員或排程 |
 | GUI | 雙擊 jar，或 `java -jar xxx.jar`（預設） | 承辦人員 |
 
 兩模式**共用同一核心服務層**，差異僅在輸入取得與結果呈現。
@@ -98,8 +98,8 @@ com.insurance.coinsurance
 │   ├── PremiumColumn.java             保費檔欄位索引 enum
 │   ├── ClaimColumn.java               理賠檔欄位索引 enum
 │   ├── TAccountCell.java              T 字帳儲存格常數
-│   ├── SummaryCell.java               彙總表欄列常數
-│   └── CoInsuranceConstants.java      N19、5%、會計格式字串等
+│   ├── SummaryCell.java               彙整表欄列常數
+│   └── CoInsuranceConstants.java      N19、6%、會計格式字串等
 ├── model/
 │   ├── Setting.java                   設定年月 + 公司清單
 │   ├── CoInsuranceCompany.java        公司名稱/代號/成分
@@ -153,7 +153,8 @@ com.insurance.coinsurance
 ├── backup/{YYYMM}/{時間戳}/       舊報表備份（保留 3 個月）
 ├── logs/report.json               執行報告（只留最後一次）
 ├── xxx.jar
-└── run.bat
+├── build.bat                      僅編譯
+└── 拜託執行我.bat                 編譯 + 執行（原 run.bat）
 ```
 
 ---
@@ -175,10 +176,10 @@ com.insurance.coinsurance
 | # | 決策 | 理由 |
 | --- | --- | --- |
 | D1 | 欄位索引以 **enum** 定義（`PremiumColumn.TOTAL_PREMIUM(17)`） | 兩檔皆有重複欄名「日額」，禁止依名稱取值；enum 讓索引集中且可讀 |
-| D2 | 所有金額以 **`long`** 保存，計算過程用 `BigDecimal` | 金額皆為整數元；`BigDecimal` 僅用於乘以成分與 5% 時控制捨入 |
+| D2 | 所有金額以 **`long`** 保存，計算過程用 `BigDecimal` | 金額皆為整數元；`BigDecimal` 僅用於乘以成分與 6% 時控制捨入 |
 | D3 | 捨入統一走 `RoundingUtil.round(BigDecimal)`，內部固定 `HALF_UP` | 避免各處誤用 `BigDecimal` 預設之 HALF_EVEN |
 | D4 | 中央再保以常數 `N19` 判定，非依列號 | 設定檔列順序可能變動 |
-| D5 | 彙總表 A 欄**不覆寫**，改以樣板 A 欄名稱查設定檔 | 列順序以樣板為準（B04），且可偵測名稱不一致（R-EXC-06） |
+| D5 | 彙整表 A 欄**不覆寫**，改以樣板 A 欄名稱查設定檔 | 列順序以樣板為準（B04），且可偵測名稱不一致（R-EXC-06） |
 | D6 | 計算欄位寫入 **公式字串**而非數值 | 可稽核（NF-12）；中央再保列之 SUM 範圍依其實際列號動態產生 |
 | D7 | 檢核採「收集後判定」而非「遇錯即拋」 | 需一次列出全部錯誤（A-18-2） |
 | D8 | fat jar 主類別 `FxLauncher` **不繼承** `javafx.application.Application` | JavaFX 打包進 fat jar 時，主類別若直接繼承 `Application` 會因缺少模組路徑而啟動失敗 |
@@ -232,12 +233,12 @@ com.insurance.coinsurance
 ### 5.2 計算相依順序（重要）
 
 ```
-M1 共保保費 ─────┬─► 彙總表 B23 ──┐
+M1 共保保費 ─────┬─► 彙整表 B23 ──┐
                  │                 ├─► F 欄公式基準 ($B$23)
-M3 攤付共保賠款 ─┴─► 彙總表 C23 ──┘   G 欄公式基準 ($C$23)
+M3 攤付共保賠款 ─┴─► 彙整表 C23 ──┘   G 欄公式基準 ($C$23)
                                    
 M5 各公司分攤保費（正值，N19 用差額法）
-        └─► M6 各公司管理費 = ROUND(M5 × 5%)
+        └─► M6 各公司管理費 = ROUND(M5 × 6%)
                 └─► M7 管理費總額 = Σ M6
                         └─► M8 Balance Due = M1 − M3 − M7
 ```
@@ -281,7 +282,7 @@ ClaimColumn   : BILL_YEAR(0) … UNDERWRITING_YEAR(5) …
 | `TAccountCell.BALANCE_DUE` / `LEFT_TOTAL` / `RIGHT_TOTAL` | `G20` / `G21` / `O21` |
 | `SummaryCell.UY` / `PERIOD` | `A3` / `E3` |
 | `SummaryCell.DETAIL_FIRST_ROW` | `7` |
-| `SummaryCell.MGMT_FEE_RATE` | `0.05` |
+| `SummaryCell.MGMT_FEE_RATE` | `0.06` |
 
 **合計列列號 = 明細最末列 + 1**，依設定檔家數動態決定（現為 23）。
 
@@ -398,7 +399,7 @@ app:
 | --- | --- | --- |
 | X1 | 共保公司增減或成分調整 | 由 `config/application.xlsx` 動態讀取；程式不寫死清單。**惟樣板 A 欄需同步**，否則觸發 R-EXC-06 中止 |
 | X2 | 中央再保換公司 | `N19` 抽為常數；若改為由設定檔標記「是否為差額承受者」可再降低耦合【推論】 |
-| X3 | 管理費費率調整（現為 5%） | 抽為常數 `SummaryCell.MGMT_FEE_RATE`；若需逐年不同可移至設定檔 |
+| X3 | 管理費費率調整（**2026-08-10 由 5% 調為 6%**） | 抽為常數 `SummaryCell.MGMT_FEE_RATE`；若需逐年不同可移至設定檔 |
 | X4 | 新增報表 | writer 層新增 `XxxWriter`，服務層加入編排；reader/validator/calculator 可重用 |
 | X5 | 匯入檔格式改版（欄位增減） | 欄位索引集中於 enum 與表頭常數，改動範圍受限 |
 | X6 | 匯入檔改為 UTF-8 | 編碼抽為常數，可改設定；現階段固定 Big5 |
@@ -416,7 +417,7 @@ app:
 | 手動驗收 | GUI 與部署 | fat jar 雙擊、畫面錯誤清單、備份行為 |
 
 **測試資料基準**：`docs/規格書/檔案位子範例/`（R-04 已同步，可直接使用）。
-**驗收數值基準**：本文件系列所載之計算結果（350,123 / 126,931 / 17,504 / 205,688 / −42,018 / −15,228）。
+**驗收數值基準**：本文件系列所載之計算結果（350,123 / 126,931 / **21,009** / **202,183** / **−24,512** / **+8,882**）。
 **禁止事項**：**不得以 `docs/規格書/產出範例/` 之金額作為比對基準**（R-06）。
 
 完整測試案例見 `..._TEST_測試驗收.md`。
@@ -439,4 +440,5 @@ app:
 
 | 版本 | 日期 | 內容 |
 | --- | --- | --- |
-| **v1.0** | **2026-08-03** | 初版；定義分層架構、套件結構、7 大模組、9 項關鍵設計決策、主流程與計算相依順序、資料模型、設定檔、錯誤處理與 exit code、日誌與個資遮蔽、7 項擴充點、測試策略 |
+| **v1.1** | **2026-08-10** | 依 2026-08-10 業務調整同步：管理費率 5% → **6%**（`CoInsuranceConstants.MANAGEMENT_FEE_RATE` / `SummaryCell.MGMT_FEE_RATE` = `0.06`）；`run.bat` 更名為 `拜託執行我.bat` 並併入 `mvnw.cmd clean package -DskipTests`；驗收數值基準更新為 21,009 / 202,183 / −24,512 / +8,882 |
+| v1.0 | 2026-08-03 | 初版；定義分層架構、套件結構、7 大模組、9 項關鍵設計決策、主流程與計算相依順序、資料模型、設定檔、錯誤處理與 exit code、日誌與個資遮蔽、7 項擴充點、測試策略 |

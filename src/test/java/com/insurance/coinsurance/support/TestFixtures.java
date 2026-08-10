@@ -33,11 +33,11 @@ public final class TestFixtures {
     // ── 文件基準值（..._LOG_現況分析與輸入輸出盤點.md §5 / MAPPING §6） ──
     public static final long TOTAL_PREMIUM = 350_123L;
     public static final long TOTAL_CLAIM = 126_931L;
-    public static final long TOTAL_MANAGEMENT_FEE = 17_504L;
-    public static final long BALANCE_DUE = 205_688L;
-    public static final long NON_REINSURER_ALLOCATED_TOTAL = 308_105L;
-    public static final long REINSURER_ALLOCATED_PREMIUM = 42_018L;
-    public static final long REINSURER_ALLOCATED_CLAIM = 15_228L;
+    public static final long TOTAL_MANAGEMENT_FEE = 21_009L;
+    public static final long BALANCE_DUE = 202_183L;
+    public static final long NON_REINSURER_ALLOCATED_TOTAL = 325_611L;
+    public static final long REINSURER_ALLOCATED_PREMIUM = 24_512L;
+    public static final long REINSURER_ALLOCATED_CLAIM = 8_882L;
     /** 未篩簽單年度之錯誤結果——反向測試用。 */
     public static final long CLAIM_WITHOUT_YEAR_FILTER = 197_722L;
 

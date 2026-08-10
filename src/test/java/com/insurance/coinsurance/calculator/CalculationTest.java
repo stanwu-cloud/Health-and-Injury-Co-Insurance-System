@@ -63,7 +63,7 @@ class CalculationTest {
     }
 
     @Test
-    @DisplayName("M5 應分配保費：非中央再保合計 308,105、中央再保採差額法得 42,018")
+    @DisplayName("M5 應分配保費：非中央再保合計 325,611、中央再保採差額法得 24,512")
     void allocationUsesDifferentialMethodForReinsurer() {
         Map<String, Long> allocated = allocationCalculator.allocate(TestFixtures.TOTAL_PREMIUM, setting);
 
@@ -74,15 +74,15 @@ class CalculationTest {
         assertEquals(TestFixtures.REINSURER_ALLOCATED_PREMIUM,
                 allocated.get(CoInsuranceConstants.REINSURER_CODE));
 
-        // 差額法吸收 3 元尾差：帳面 12% 乘算為 42,015
-        assertEquals(42_015L,
-                RoundingUtil.multiplyAndRound(TestFixtures.TOTAL_PREMIUM, new BigDecimal("0.12")));
+        // 差額法吸收 3 元尾差：帳面 7% 乘算為 24,509
+        assertEquals(24_509L,
+                RoundingUtil.multiplyAndRound(TestFixtures.TOTAL_PREMIUM, new BigDecimal("0.07")));
         assertEquals(TestFixtures.TOTAL_PREMIUM,
                 allocated.values().stream().mapToLong(Long::longValue).sum());
     }
 
     @Test
-    @DisplayName("應攤配賠款之中央再保差額 = 15,228")
+    @DisplayName("應攤配賠款之中央再保差額 = 8,882")
     void allocatedClaim() {
         Map<String, Long> allocated = allocationCalculator.allocate(TestFixtures.TOTAL_CLAIM, setting);
         assertEquals(TestFixtures.REINSURER_ALLOCATED_CLAIM,
@@ -107,13 +107,13 @@ class CalculationTest {
     }
 
     @Test
-    @DisplayName("M6/M7/M8：管理費 17,504、N05 = 1,050、N19 = 2,101、Balance Due = 205,688")
+    @DisplayName("M6/M7/M8：管理費 21,009、N05 = 1,260、N19 = 1,471、Balance Due = 202,183")
     void managementFeeAndBalanceDue() {
         Map<String, Long> allocated = allocationCalculator.allocate(TestFixtures.TOTAL_PREMIUM, setting);
         Map<String, Long> fees = managementFeeCalculator.managementFeeByCompany(allocated, setting);
 
-        assertEquals(1_050L, fees.get("N05"));
-        assertEquals(2_101L, fees.get(CoInsuranceConstants.REINSURER_CODE));
+        assertEquals(1_260L, fees.get("N05"));
+        assertEquals(1_471L, fees.get(CoInsuranceConstants.REINSURER_CODE));
 
         long total = managementFeeCalculator.totalManagementFee(fees);
         assertEquals(TestFixtures.TOTAL_MANAGEMENT_FEE, total);
