@@ -6,6 +6,7 @@ import com.insurance.coinsurance.calculator.ManagementFeeCalculator;
 import com.insurance.coinsurance.calculator.PremiumCalculator;
 import com.insurance.coinsurance.config.AppConfig;
 import com.insurance.coinsurance.config.SettingReader;
+import com.insurance.coinsurance.constant.ClaimTAccountCell;
 import com.insurance.coinsurance.constant.CoInsuranceConstants;
 import com.insurance.coinsurance.constant.SummaryCell;
 import com.insurance.coinsurance.constant.TAccountCell;
@@ -26,6 +27,7 @@ import com.insurance.coinsurance.validator.ClaimValidator;
 import com.insurance.coinsurance.validator.PeriodValidator;
 import com.insurance.coinsurance.validator.PremiumValidator;
 import com.insurance.coinsurance.writer.BackupService;
+import com.insurance.coinsurance.writer.ClaimTAccountWriter;
 import com.insurance.coinsurance.writer.ReportJsonWriter;
 import com.insurance.coinsurance.writer.SummaryWriter;
 import com.insurance.coinsurance.writer.TAccountWriter;
@@ -40,6 +42,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 流程編排（DESIGN §5.1）——服務層之唯一對外入口。
@@ -67,6 +70,7 @@ public class ReportGenerationService {
     private final BackupService backupService;
     private final TAccountWriter tAccountWriter;
     private final SummaryWriter summaryWriter;
+    private final ClaimTAccountWriter claimTAccountWriter;
     private final ReportJsonWriter reportJsonWriter;
 
     @SuppressWarnings("java:S107")
@@ -77,6 +81,7 @@ public class ReportGenerationService {
                                    ClaimCalculator claimCalculator, AllocationCalculator allocationCalculator,
                                    ManagementFeeCalculator managementFeeCalculator, BackupService backupService,
                                    TAccountWriter tAccountWriter, SummaryWriter summaryWriter,
+                                   ClaimTAccountWriter claimTAccountWriter,
                                    ReportJsonWriter reportJsonWriter) {
         this.appConfig = appConfig;
         this.settingReader = settingReader;
@@ -92,6 +97,7 @@ public class ReportGenerationService {
         this.backupService = backupService;
         this.tAccountWriter = tAccountWriter;
         this.summaryWriter = summaryWriter;
+        this.claimTAccountWriter = claimTAccountWriter;
         this.reportJsonWriter = reportJsonWriter;
     }
 
@@ -174,28 +180,55 @@ public class ReportGenerationService {
                 calculation.totalManagementFee(), calculation.balanceDue());
 
         // [6] 跨報表一致性檢查
-        verifyConsistency(setting, calculation);
+        verifyConsistency(setting, calculation, claims);
 
         // [7] 備份既有輸出並清除逾期備份
-        List<String> outputNames = List.of(
+        //     清單為固定 2 檔 + M10 推導之 N 檔；寫死 2 檔會使賠款 T 字帳重跑時無備份（TASK K14）
+        List<String> outputNames = new ArrayList<>(List.of(
                 TAccountCell.OUTPUT_FILE_PATTERN.formatted(yearMonth),
-                SummaryCell.OUTPUT_FILE_PATTERN.formatted(yearMonth));
+                SummaryCell.OUTPUT_FILE_PATTERN.formatted(yearMonth)));
+        calculation.reportYears().forEach(year -> outputNames.add(
+                ClaimTAccountCell.OUTPUT_FILE_PATTERN.formatted(yearMonth, String.valueOf(year))));
         backupService.backupExisting(outputDir, outputNames, yearMonth, report);
         backupService.purgeExpired(report);
 
-        // [8] 產出兩張報表（兩表同進退）
+        // [8] 產出報表：前兩張同進退，賠款 T 字帳份數隨資料變動（0 ~ N 份）
         Path tAccount = tAccountWriter.write(setting, calculation, outputDir);
         Path summary = summaryWriter.write(setting, calculation, outputDir);
-        List<Path> outputs = List.of(tAccount, summary);
+        List<Path> claimTAccounts = claimTAccountWriter.writeAll(setting, calculation, outputDir);
+
+        List<Path> outputs = new ArrayList<>(List.of(tAccount, summary));
+        outputs.addAll(claimTAccounts);
         outputs.forEach(path -> report.getOutputFiles().add(new ExecutionReport.OutputFile(
                 path.getFileName().toString(), path.toAbsolutePath().toString())));
 
+        String claimTAccountMessage = describeClaimTAccount(calculation, Files.exists(claimPath));
+        report.setClaimTAccountMessage(claimTAccountMessage);
         report.setSummary(new ExecutionReport.Summary(calculation.totalPremium(), calculation.totalClaim(),
-                calculation.totalManagementFee(), calculation.balanceDue()));
+                calculation.totalManagementFee(), calculation.balanceDue(),
+                calculation.claimByUnderwritingYear(), calculation.reportYears()));
 
         return ExecutionResult.success(
-                "已產出 %d 年 %s 月報表 2 張".formatted(setting.year(), setting.monthOfTwoDigits()),
+                "已產出 %d 年 %s 月報表 2 張；%s".formatted(
+                        setting.year(), setting.monthOfTwoDigits(), claimTAccountMessage),
                 outputs, calculation, report);
+    }
+
+    /**
+     * 賠款 T 字帳之產出說明（R-OUT-09）。
+     *
+     * <p>未產出時<b>須能區分原因</b>——承辦人員要能判斷是漏放理賠檔，還是本月真的沒有非當年度簽單資料。
+     */
+    private String describeClaimTAccount(CalculationResult calculation, boolean claimFileExists) {
+        if (!calculation.reportYears().isEmpty()) {
+            String years = calculation.reportYears().stream()
+                    .map(year -> year + " 年")
+                    .collect(Collectors.joining("、"));
+            return "賠款月帳單 %d 張（簽單年度 %s）".formatted(calculation.reportYears().size(), years);
+        }
+        return claimFileExists
+                ? "未產出賠款月帳單：無非當年度簽單資料"
+                : "未產出賠款月帳單：理賠匯入檔不存在";
     }
 
     private CalculationResult calculate(Setting setting, List<PremiumRecord> premiums, List<ClaimRecord> claims) {
@@ -214,15 +247,22 @@ public class ReportGenerationService {
         long totalManagementFee = managementFeeCalculator.totalManagementFee(managementFee);
         long balanceDue = managementFeeCalculator.balanceDue(totalPremium, totalClaim, totalManagementFee);
 
+        // 第二階段：M9 取全部年度（與上方 filtered 恰為互補），M10 再排除設定年
+        Map<Integer, Long> claimByUnderwritingYear = claimCalculator.claimByUnderwritingYear(claims);
+        List<Integer> reportYears = claimCalculator.reportYears(claimByUnderwritingYear, setting.year());
+        log.info("簽單年度分群 {}，應產出賠款月帳單之年度 {}", claimByUnderwritingYear, reportYears);
+
         return new CalculationResult(totalPremium, premiumByCompany, totalClaim, claimByCompany,
-                allocatedPremium, allocatedClaim, managementFee, totalManagementFee, balanceDue);
+                allocatedPremium, allocatedClaim, managementFee, totalManagementFee, balanceDue,
+                claimByUnderwritingYear, reportYears);
     }
 
     /**
-     * R-CALC-16：T 字帳 G6 = 彙整表 C23、O6 = B23、G14 = I23。
+     * R-CALC-16：T 字帳 G6 = 彙整表 C23、O6 = B23、G14 = I23；
+     * 第二階段追加 {@code M9[設定年] == M3} 與 {@code Σ M9 == 理賠檔全部已決賠款}。
      * 不相等視為程式缺陷，中止並記錄。
      */
-    private void verifyConsistency(Setting setting, CalculationResult calculation) {
+    private void verifyConsistency(Setting setting, CalculationResult calculation, List<ClaimRecord> claims) {
         long summaryPremiumTotal = 0L;
         long summaryClaimTotal = 0L;
         for (CoInsuranceCompany company : setting.companies()) {
@@ -235,6 +275,15 @@ public class ReportGenerationService {
         checkEqual("共保保費（T 字帳 O6 vs 彙整表 B23）", calculation.totalPremium(), summaryPremiumTotal);
         checkEqual("攤付共保賠款（T 字帳 G6 vs 彙整表 C23）", calculation.totalClaim(), summaryClaimTotal);
         checkEqual("共保管理費（T 字帳 G14 vs 彙整表 I23）", calculation.totalManagementFee(), summaryFeeTotal);
+
+        // 第二階段：M9 與 M3 之交叉驗證——分群路徑與篩選路徑須得到同一組數字
+        long claimYearSum = calculation.claimByUnderwritingYear().values().stream()
+                .mapToLong(Long::longValue).sum();
+        checkEqual("設定年賠款（M9[%d] vs M3）".formatted(setting.year()),
+                calculation.claimOfYear(setting.year()), calculation.totalClaim());
+        checkEqual("理賠檔全部已決賠款（Σ M9 vs 理賠檔加總）",
+                claimYearSum, claimCalculator.totalClaim(claims));
+
         log.info("跨報表一致性檢查通過");
     }
 

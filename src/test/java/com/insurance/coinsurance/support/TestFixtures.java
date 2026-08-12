@@ -38,8 +38,14 @@ public final class TestFixtures {
     public static final long NON_REINSURER_ALLOCATED_TOTAL = 325_611L;
     public static final long REINSURER_ALLOCATED_PREMIUM = 24_512L;
     public static final long REINSURER_ALLOCATED_CLAIM = 8_882L;
-    /** 未篩簽單年度之錯誤結果——反向測試用。 */
+    /** 未篩簽單年度之錯誤結果——反向測試用；亦即第二階段 Σ M9。 */
     public static final long CLAIM_WITHOUT_YEAR_FILTER = 197_722L;
+
+    // ── 第二階段基準值（..._LOG_第二階段問題追蹤清單.md §5.2 / MAPPING §10） ──
+    /** M9[113]，賠款 T 字帳之 G6 / G21 / O20 / O21。 */
+    public static final long CLAIM_YEAR_113 = 32_460L;
+    /** M9[114]，同上。 */
+    public static final long CLAIM_YEAR_114 = 38_331L;
 
     private static final Path SAMPLE_ROOT = Path.of("docs", "規格來源", "第一階段-共保月帳單", "檔案位子範例");
 

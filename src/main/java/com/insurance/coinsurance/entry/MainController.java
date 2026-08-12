@@ -149,7 +149,7 @@ public class MainController {
                     calculation.totalManagementFee(), calculation.balanceDue()));
             outputLabel.setText(text.toString());
         } else {
-            outputLabel.setText("兩張報表皆未產出；詳見 ./logs/report.json");
+            outputLabel.setText("報表皆未產出；詳見 ./logs/report.json");
         }
     }
 

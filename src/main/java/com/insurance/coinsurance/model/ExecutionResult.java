@@ -25,7 +25,12 @@ public record ExecutionResult(
 
     /** 結果狀態；{@link #exitCode()} 對應 DESIGN §8.3。 */
     public enum Status {
-        /** 成功產出兩張報表。 */
+        /**
+         * 成功產出報表。
+         *
+         * <p>賠款 T 字帳<b>產出 0 份仍屬成功</b>（R-OUT-09）——理賠檔缺檔或全部簽單年度皆為設定年
+         * 都是正常業務狀態，不得回傳非 0 之 exit code。
+         */
         SUCCESS(0),
         /** 匯入檔檢核失敗。 */
         VALIDATION_FAILED(1),
@@ -65,7 +70,7 @@ public record ExecutionResult(
 
     public static ExecutionResult validationFailed(List<ValidationError> errors, ExecutionReport report) {
         return new ExecutionResult(Status.VALIDATION_FAILED,
-                "匯入檔檢核失敗，共 %d 筆錯誤；兩張報表皆未產出".formatted(errors.size()),
+                "匯入檔檢核失敗，共 %d 筆錯誤；全部報表皆未產出".formatted(errors.size()),
                 errors, List.of(), null, report);
     }
 

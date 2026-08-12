@@ -2,6 +2,7 @@ package com.insurance.coinsurance.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 執行報告（MAPPING §9 之 F1~F10），序列化為 {@code logs/report.json}。
@@ -23,8 +24,14 @@ public class ExecutionReport {
     public record BackupFile(String source, String target) {
     }
 
-    /** F10 計算結果摘要。 */
-    public record Summary(long totalPremium, long totalClaim, long totalManagementFee, long balanceDue) {
+    /**
+     * F10 計算結果摘要。
+     *
+     * @param claimByUnderwritingYear M9 各簽單年度賠款合計（第二階段）
+     * @param reportYears             M10 本次產出賠款 T 字帳之年度（第二階段，降冪）
+     */
+    public record Summary(long totalPremium, long totalClaim, long totalManagementFee, long balanceDue,
+                          Map<Integer, Long> claimByUnderwritingYear, List<Integer> reportYears) {
     }
 
     /** F1 執行時間戳。 */
@@ -49,6 +56,12 @@ public class ExecutionReport {
     private Summary summary;
     /** 中止原因（非 MAPPING 必要欄位，供排錯）。 */
     private String fatalMessage;
+    /**
+     * 賠款 T 字帳之產出說明（第二階段，R-OUT-09）。
+     *
+     * <p>未產出時<b>須能區分原因</b>：理賠匯入檔不存在 vs 全部簽單年度皆為設定年。
+     */
+    private String claimTAccountMessage;
 
     public String getExecutedAt() {
         return executedAt;
@@ -121,5 +134,13 @@ public class ExecutionReport {
 
     public void setFatalMessage(String fatalMessage) {
         this.fatalMessage = fatalMessage;
+    }
+
+    public String getClaimTAccountMessage() {
+        return claimTAccountMessage;
+    }
+
+    public void setClaimTAccountMessage(String claimTAccountMessage) {
+        this.claimTAccountMessage = claimTAccountMessage;
     }
 }

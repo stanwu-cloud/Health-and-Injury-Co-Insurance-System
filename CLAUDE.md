@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 規格先行的專案，分兩階段：
 
 - **第一階段（`dev`，已上線）**：REQ / DESIGN / TASK / TEST 皆已完成，**實作已完成並通過驗收**（T-01 ~ T-21；T-22 取代產出範例檔待業務方確認）。交付物為一支讀取共保系統匯出的 CSV、套用 Excel 樣板、產出兩張月帳單報表（T 字帳、彙整表）的程式，位於 `src/main/java/com/insurance/coinsurance/`。
-- **第二階段（`feature/phase-two`，進行中）**：新增第三張報表「**當月賠款月帳單－T字帳**」——只讀理賠檔，**排除簽單年度 == 設定年**，其餘每個簽單年度各產出一份。**M1 ~ M4 已完成**：P-01 ~ P-11 全數結案，MAPPING / RULE / REQ / DESIGN / TASK / TEST 均已納入第二階段。**下一步是 M5 實作**，依 TASK 階段七之 T-23 ~ T-27 順序進行。動手前先讀 `..._LOG_第二階段問題追蹤清單.md` §5、MAPPING §10、RULE 之 R-PATH-07 / R-CALC-17~20 / R-OUT-08~09、DESIGN §4.2 與 D10 ~ D14、TASK 之 K11 ~ K15。
+- **第二階段（`feature/phase-two`）**：新增第三張報表「**當月賠款月帳單－T字帳**」——只讀理賠檔，**排除簽單年度 == 設定年**，其餘每個簽單年度各產出一份。**M0 ~ M6 全部完成**（2026-08-12）：P-01 ~ P-11 結案，文件全面納入第二階段，**T-23 ~ T-28 已實作並通過驗收**（`ClaimTAccountCell` / `ClaimYearSummary` / `ClaimCalculator` 擴充 / `ClaimTAccountWriter` / 服務層編排 / 進入點訊息）。實跑產出 4 檔、exit code 0、金額 32,460（113）與 38,331（114）。**唯一未結項目是 T-29——以實跑輸出取代 `docs/規格來源/第二階段-賠款月帳單/產出範例/`，須業務方確認**（同第一階段 T-22）。改動前先讀 `..._LOG_第二階段問題追蹤清單.md` §5、MAPPING §10、RULE 之 R-PATH-07 / R-CALC-17~20 / R-OUT-08~09、DESIGN §4.2 與 D10 ~ D14、TASK 之 K11 ~ K15。
 
 第二階段一律在 `feature/phase-two` 開發，驗收後才合回 `dev`。
 
@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 build.bat                          建置 fat jar（內含指定 JDK 17 之 JAVA_HOME）
 拜託執行我.bat [--year=115 --month=5]  編譯 + CLI 批次執行（原 run.bat，已併入 package）
-mvnw.cmd -o test                   執行 38 項測試（-o 離線，相依已在本機倉庫）
+mvnw.cmd -o test                   執行 48 項測試（-o 離線，相依已在本機倉庫）
 mvnw.cmd clean package -DskipTests
 ```
 
@@ -103,7 +103,7 @@ docs/規格來源/
 
 T 字帳寫入位置（規格書 v1.0 曾整體偏一列，已修正）：`I3` 單格 `115 年 05 月`、`P4` 只寫 `2026`（`O4` 的 `U/Y:` 是樣板既有、不覆寫）、`G6` / `O6` / `G14` / `G20` / `G21` / `O21`。
 
-**第二階段**（尚未實作，數字已由範例檔實測確認）：排除簽單年度 115 後產出 2 份 —— **114 年 → 38,331**、**113 年 → 32,460**。
+**第二階段**（已實作，實跑輸出與範例檔金額相符）：排除簽單年度 115 後產出 2 份 —— **114 年 → 38,331**、**113 年 → 32,460**。
 交叉驗證：38,331 + 32,460 + 126,931（第一階段的 115 年）= 197,722 = 理賠檔全部金額。
 
 ## 本機工具鏈
