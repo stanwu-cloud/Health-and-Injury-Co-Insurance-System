@@ -18,7 +18,8 @@ import java.util.Map;
  * @param totalManagementFee       M7 共保管理費總額
  * @param balanceDue               M8 Balance Due = M1 − M3 − M7（可為負）
  * @param claimByUnderwritingYear  M9 各簽單年度之賠款合計（<b>全年度不篩選</b>，降冪）
- * @param reportYears              M10 應產出賠款 T 字帳之年度（<b>已排除設定年</b>，降冪）
+ * @param reportYears              M10 應產出賠款 T 字帳之年度（降冪）。<b>僅在第一階段兩張報表會產出時
+ *                                 才排除設定年</b>；保費檔缺檔時設定年一併列入，否則該年賠款無報表承載（P-13）
  */
 public record CalculationResult(
         long totalPremium,

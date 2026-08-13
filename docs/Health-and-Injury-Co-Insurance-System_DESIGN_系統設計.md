@@ -192,6 +192,11 @@ com.insurance.coinsurance
 | **D12** | **賠款 T 字帳一律寫入數值，不寫公式** | 該報表四個金額格皆為同一個來源值，無跨格運算；寫公式反而讓稽核者需要重算才看得到值。R-OUT-06 之「寫公式」僅適用彙整表 |
 | **D13** | **`M10` 為空時回傳空清單而非拋例外** | 「本月沒有非當年度簽單資料」是正常業務狀態（P-06）；例外會讓整體 exit code 變成非 0，與 R-OUT-09 相衝 |
 | **D14** | **賠款 T 字帳樣板之存在性檢查延後至確定要產出時** | 若 `M10` 為空卻因樣板缺檔而中止，會讓第一階段兩張報表也產不出來，與 R-OUT-09 相衝（對應 REQ 之 E16） |
+| **D15** | **保費檔之存在性由服務層判斷，`PremiumCsvReader` 之缺檔例外降為防衛性檢查** | 「缺檔之後續處置」是流程決策不是讀檔決策。讀取器一拋例外，服務層就沒有機會決定「前兩張不產、第三張照產」（P-12）。讀取器保留檢查以防其他呼叫端漏判 |
+| **D16** | **保費檔缺檔時，備份清單與寫出清單由同一個 `premiumFileExists` 旗標控制** | 兩者若各自判斷，容易出現「備份了卻不重寫」——`BackupService` 是 `Files.move()`，會把前次成果**移走**，承辦人員會以為輸出遺失。旗標單一來源可讓這條不變式在編譯期就看得出來 |
+| **D17** | **「三張全部落空」之中止點放在一致性檢查之後、備份之前** | 放在備份之後會留下「有備份、無產出」的空目錄；放在讀檔當下則還不知道 `M10` 是否為空，無法判斷賠款 T 字帳能否產出 |
+| **D18** | **`reportYears()` 收「第一階段報表是否產出」為參數，而非在服務層事後補上設定年** | 「排除設定年」與「補回設定年」是同一個決策的兩面，寫在兩個地方遲早會不同步。把條件收進 `ClaimCalculator` 後，M10 的定義單點成立，服務層只負責傳入 `premiumFileExists`（P-13） |
+| **D19** | **以「賠款承載完整性」作為執行期不變式，而非只靠測試** | `Σ M9 == （前兩張產出 ? M3 : 0） + Σ M10` 是 P-13 規則的形式化。排除條件寫錯的症狀是**金額憑空消失**——沒有這條檢查，程式會安靜地少產一份報表，帳面上看不出來。放進 `verifyConsistency()` 讓它在正式執行時也會擋 |
 
 
 ### 4.2 第二階段新增元件
@@ -230,11 +235,13 @@ writeAll(setting, calculation, outputDir):
 
 **服務層編排之調整（`ReportGenerationService`）**：
 
-1. `verifyConsistency()` 追加兩條不變式：`M9[configYear] == M3`、`Σ M9 == 理賠檔全部已決賠款合計`。
-2. 備份階段（`BackupService`）之目標檔清單改為**動態**：固定兩檔 + `M10` 推導出的 N 個檔名。
-3. 產出階段依序呼叫 `TAccountWriter` → `SummaryWriter` → `ClaimTAccountWriter.writeAll()`，將 `List<Path>` 併入 `ExecutionResult.outputFiles()`。
-4. `ExecutionReport` 追加 `claimByUnderwritingYear` 與 `reportYears`；後者為空時附**可區分原因**的訊息（理賠檔缺檔 vs 全部簽單年度皆為設定年）。
+1. `verifyConsistency()` 追加三條不變式：`M9[configYear] == M3`、`Σ M9 == 理賠檔全部已決賠款合計`、**賠款承載完整性** `Σ M9 == （前兩張產出 ? M3 : 0） + Σ M10`（D19）。該方法需收 `premiumFileExists` 參數。
+2. 備份階段（`BackupService`）之目標檔清單改為**動態**：`M10` 推導出的 N 個檔名，加上前兩張——但**前兩張僅在保費檔存在時才列入**（D16）。
+3. 產出階段依序呼叫 `TAccountWriter` → `SummaryWriter` → `ClaimTAccountWriter.writeAll()`，將 `List<Path>` 併入 `ExecutionResult.outputFiles()`；**保費檔缺檔時前兩者整組略過**（P-12）。
+4. `ExecutionReport` 追加 `claimByUnderwritingYear` 與 `reportYears`；後者為空時附**可區分原因**的訊息（理賠檔缺檔 vs 全部簽單年度皆為設定年）。另追加 `premiumFileMissing` 與 `premiumReportMessage`，使三張報表的產出結果在報告中各自可讀（P-12）。
 5. 服務層仍**不得** `System.exit()` 或直接印訊息（D9 不變）。
+6. **保費檔缺檔且 `M10` 為空**時三張全部落空，於一致性檢查之後、備份之前拋 `FatalException`（D17）；訊息須區分「理賠匯入檔亦不存在」與「理賠匯入檔無任何資料列」。因 P-13 之後保費檔缺檔時設定年不被排除，此分支**僅在理賠檔完全無資料時成立**。
+7. `ClaimCalculator.reportYears()` 之簽章改為 `(Map<Integer,Long>, int configYear, boolean premiumReportsProduced)`，由服務層傳入 `premiumFileExists`（D18）。
 
 ---
 
@@ -253,11 +260,12 @@ writeAll(setting, calculation, outputDir):
    │  Setting(year, month, companies[16])
    ▼
 [2] 組 YYYMM（月份補零）；解析輸入/輸出/備份路徑
-   │  保費檔不存在 ────────────────────► FatalException
    ▼
 [3] CsvReader 解析（Big5、跳表頭、表頭驗證、索引取欄）
    │  解碼失敗/表頭不符/欄數不符 ──────► FatalException
    │  理賠檔不存在 → claims = 空集合（不視為錯誤）
+   │  保費檔不存在 → premiums = 空集合 + premiumFileMissing 旗標   ★P-12
+   │                 （不在此中止；前兩張報表本次不產出）
    ▼
 [4] Validator 逐列檢核（收集全部錯誤）
    │  errors.isEmpty() == false ──────► ValidationFailedException
@@ -267,17 +275,23 @@ writeAll(setting, calculation, outputDir):
    │  M1 共保保費 / M2 各公司保費
    │  M3 攤付共保賠款(篩簽單年度) / M4 各公司賠款
    │  M5 應分配保費(N19 差額法) / M6,M7 管理費 / M8 Balance Due
-   │  M9 簽單年度分群 / M10 應產出年度(排除設定年、降冪)      ★二階段
+   │  M9 簽單年度分群 / M10 應產出年度(降冪)                  ★二階段
+   │     └─ 排除設定年 ⇔ premiumFileExists（P-13）
+   │        缺檔時不排除，該年賠款改由賠款 T 字帳承載
    ▼
-[6] 跨報表一致性檢查（R-CALC-16，含 M9[設定年]==M3、ΣM9==全部賠款）
+[6] 跨報表一致性檢查（R-CALC-16，含 M9[設定年]==M3、ΣM9==全部賠款、
+   │                    賠款承載完整性 ΣM9==(前兩張產出?M3:0)+ΣM10）
    │  不一致 ──────────────────────────► FatalException（程式缺陷）
+   │  premiumFileMissing && M10 為空 ──► FatalException（三張全部落空）★P-12
+   │                                     須在備份之前判斷（D17）
    ▼
 [7] BackupService：備份既有輸出檔 + 清除逾 3 個月備份
+   │  清單只列本次會重寫者；premiumFileMissing 時不列前兩張（D16）
    │  備份失敗 ────────────────────────► FatalException（不覆寫）
    ▼
 [8] Writer：載入樣板 → 寫值/公式 → 套格式 → 改工作表名 → 存檔
-   │  TAccountWriter  → 1 檔
-   │  SummaryWriter   → 1 檔
+   │  TAccountWriter  → 1 檔  ┐ premiumFileMissing 時
+   │  SummaryWriter   → 1 檔  ┘ 整組略過（0 檔）      ★P-12
    │  ClaimTAccountWriter → N 檔（★二階段，逐年度迴圈；M10 為空則 0 檔）
    ▼
 [9] ReportJsonWriter：覆寫 ./logs/report.json（產出清單含全部 2+N 檔）
@@ -413,7 +427,7 @@ app:
 
 | 類別 | 語意 | 進入點行為 |
 | --- | --- | --- |
-| `FatalException` | 前置資源或環境問題（缺檔、格式錯誤、成分不符、備份失敗） | CLI：印訊息、exit code 2；GUI：彈出錯誤對話框 |
+| `FatalException` | 前置資源或環境問題（缺檔、格式錯誤、成分不符、備份失敗）。**保費檔缺檔不必然屬此類**——僅在三張報表全部落空時才升級為 `FatalException`（P-12） | CLI：印訊息、exit code 2；GUI：彈出錯誤對話框 |
 | `ValidationFailedException` | 匯入檔資料檢核失敗（攜帶 `List<ValidationError>`） | CLI：印全部錯誤、exit code 1；GUI：於表格列出全部錯誤 |
 | 其他 `RuntimeException` | 未預期錯誤 | 記錄堆疊、exit code 3 |
 
@@ -502,7 +516,7 @@ app:
 | --- | --- | --- |
 | 單元測試 | calculator、validator、util | 金額計算之精確值、捨入方向、差額法、日期與長度檢核、遮蔽格式 |
 | 整合測試 | service 全流程 | 以 `檔案位子範例/` 為基準輸入，比對產出檔之儲存格值與公式 |
-| 反向測試 | 例外路徑 | 缺檔、成分 ≠ 100%、表頭錯置、出生日期 6 碼、年月不符、名稱查無對應；**二階段：全部簽單年度皆為設定年（產 0 份仍成功）、以 M8 算 Balance Due 得負值** |
+| 反向測試 | 例外路徑 | 缺檔、成分 ≠ 100%、表頭錯置、出生日期 6 碼、年月不符、名稱查無對應；**二階段：全部簽單年度皆為設定年（產 0 份仍成功）、以 M8 算 Balance Due 得負值**；**P-12：保費檔缺檔（只產賠款 T 字帳）、雙檔皆缺（中止）、保費檔缺檔且無可產出年度（中止）、保費檔僅有表頭（三張照產、Balance Due 為負）** |
 | 手動驗收 | GUI 與部署 | fat jar 雙擊、畫面錯誤清單、備份行為 |
 
 **測試資料基準**：`docs/規格來源/第一階段-共保月帳單/檔案位子範例/`（R-04 已同步，可直接使用）。
@@ -531,6 +545,8 @@ app:
 
 | 版本 | 日期 | 內容 |
 | --- | --- | --- |
+| **v1.4** | **2026-08-13** | **P-13：`M10` 之「排除設定年」改為條件式**。新增設計決策 **D18**（條件收進 `ClaimCalculator.reportYears()`，不在服務層事後補設定年）與 **D19**（以「賠款承載完整性」作為執行期不變式，因排除條件寫錯的症狀是金額憑空消失、帳面看不出來）；§4.2 服務層編排第 1 / 6 點改寫並新增第 7 點；§5.1 主流程圖之 [5] / [6] 更新 |
+| **v1.3** | **2026-08-13** | **P-12：保費檔缺檔不再阻擋賠款 T 字帳**。新增關鍵設計決策 **D15 ~ D17**（存在性判斷上移至服務層、備份與寫出由同一旗標控制、中止點置於一致性檢查之後備份之前）；§4.2「服務層編排之調整」第 2 / 3 / 4 點改寫並新增第 6 點；§5.1 主流程圖之 [2] / [3] / [6] / [7] / [8] 更新；§8.2 `FatalException` 適用範圍加註；§11 反向測試補列四種組合 |
 | **v1.2** | **2026-08-10** | **納入第二階段（賠款 T 字帳）設計**：§3.2 套件結構新增 `ClaimTAccountCell` / `ClaimYearSummary` / `ClaimTAccountWriter`；§4 模組職責擴充至 R-CALC-01~20、R-OUT-01~09；新增 **§4.2 第二階段新增元件**（元件表、`writeAll()` 處理輪廓、服務層編排 5 點調整）；新增關鍵設計決策 **D10 ~ D14**（另立常數類別、逐份獨立載入樣板、寫值不寫公式、空清單不拋例外、樣板檢查延後）；§5.1 主流程與 §5.2 相依順序補上二階段分支與「禁止套用 M8」警示；§6.1 `CalculationResult` 追加 M9 / M10、新增 `ClaimYearSummary`；§6.3 新增 `ClaimTAccountCell` 常數對照表並標出與 `TAccountCell` 之差異；§10 新增擴充點 X8；§11 測試策略與驗收基準補列二階段；§12 新增 D-06 / D-07 |
 | v1.1 | 2026-08-10 | 依 2026-08-10 業務調整同步：管理費率 5% → **6%**（`CoInsuranceConstants.MANAGEMENT_FEE_RATE` / `SummaryCell.MGMT_FEE_RATE` = `0.06`）；`run.bat` 更名為 `拜託執行我.bat` 並併入 `mvnw.cmd clean package -DskipTests`；驗收數值基準更新為 21,009 / 202,183 / −24,512 / +8,882 |
 | v1.0 | 2026-08-03 | 初版；定義分層架構、套件結構、7 大模組、9 項關鍵設計決策、主流程與計算相依順序、資料模型、設定檔、錯誤處理與 exit code、日誌與個資遮蔽、7 項擴充點、測試策略 |

@@ -48,11 +48,11 @@ class ClaimTAccountTest {
     }
 
     @Test
-    @DisplayName("TC-U-16 應產出年度清單（M10）——排除設定年並降冪")
+    @DisplayName("TC-U-16 應產出年度清單（M10）——第一階段報表會產出時排除設定年並降冪")
     void listsReportYearsInDescendingOrder() {
         Map<Integer, Long> byYear = claimCalculator.claimByUnderwritingYear(TestFixtures.sampleClaims());
 
-        List<Integer> years = claimCalculator.reportYears(byYear, TestFixtures.YEAR);
+        List<Integer> years = claimCalculator.reportYears(byYear, TestFixtures.YEAR, true);
 
         assertEquals(List.of(114, 113), years, "順序即為斷言之一，不得為 [113, 114]");
     }
@@ -64,8 +64,40 @@ class ClaimTAccountTest {
         byYear.put(116, 100L);
         byYear.put(115, 200L);
 
-        assertEquals(List.of(116), claimCalculator.reportYears(byYear, 115),
+        assertEquals(List.of(116), claimCalculator.reportYears(byYear, 115, true),
                 "116 大於設定年，仍須產出");
+    }
+
+    @Test
+    @DisplayName("TC-U-19 保費檔缺檔時 M10 不排除設定年——否則該年賠款無報表承載（P-13）")
+    void keepsConfigYearWhenPhaseOneReportsAreNotProduced() {
+        Map<Integer, Long> byYear = claimCalculator.claimByUnderwritingYear(TestFixtures.sampleClaims());
+
+        List<Integer> years = claimCalculator.reportYears(byYear, TestFixtures.YEAR, false);
+
+        assertEquals(List.of(115, 114, 113), years, "設定年須一併產出且維持降冪");
+
+        // 承載完整性：前兩張報表不產出時，M10 必須涵蓋 M9 之全部金額
+        long carried = years.stream().mapToLong(byYear::get).sum();
+        assertEquals(TestFixtures.CLAIM_WITHOUT_YEAR_FILTER, carried, "Σ M10 須等於 Σ M9");
+    }
+
+    @Test
+    @DisplayName("TC-U-19 追加：兩種模式恰為互補——設定年不會被漏掉，也不會被重複承載")
+    void reportYearsPartitionClaimsExactlyOnce() {
+        Map<Integer, Long> byYear = claimCalculator.claimByUnderwritingYear(TestFixtures.sampleClaims());
+        long total = byYear.values().stream().mapToLong(Long::longValue).sum();
+
+        // 保費檔存在：第一階段承載設定年（M3），賠款 T 字帳承載其餘
+        long withPremium = claimCalculator.reportYears(byYear, TestFixtures.YEAR, true).stream()
+                .mapToLong(byYear::get).sum();
+        assertEquals(total, TestFixtures.TOTAL_CLAIM + withPremium,
+                "M3 + Σ M10 須等於 Σ M9，不得重複或遺漏");
+
+        // 保費檔缺檔：第一階段承載 0，賠款 T 字帳承載全部
+        long withoutPremium = claimCalculator.reportYears(byYear, TestFixtures.YEAR, false).stream()
+                .mapToLong(byYear::get).sum();
+        assertEquals(total, withoutPremium);
     }
 
     @Test

@@ -78,6 +78,11 @@ public class CliRunner {
                 for (Path path : result.outputFiles()) {
                     System.out.println("  產出：" + path.toAbsolutePath());
                 }
+                // 保費檔缺檔時下方三項皆為以 0 計算之結果，須先警示再列數字（P-12）
+                if (result.report().isPremiumFileMissing()) {
+                    System.out.println("  ※ 警告：找不到保費匯入檔，共保保費／管理費／Balance Due 均以 0 計算，"
+                            + "非本月實際金額；若非本月確實無保費，請確認匯入檔是否漏放");
+                }
                 var calculation = result.calculation();
                 System.out.printf("  共保保費：%,d%n", calculation.totalPremium());
                 System.out.printf("  攤付共保賠款：%,d%n", calculation.totalClaim());

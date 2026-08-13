@@ -56,6 +56,7 @@ class ReportGenerationServiceTest {
     private static final String SUMMARY = "共保保費_當月共保月帳單_彙整表11505.xlsx";
     private static final String CLAIM_T_ACCOUNT_113 = "共保理賠_當月賠款月帳單_T字帳報表11505_113年.xlsx";
     private static final String CLAIM_T_ACCOUNT_114 = "共保理賠_當月賠款月帳單_T字帳報表11505_114年.xlsx";
+    private static final String CLAIM_T_ACCOUNT_115 = "共保理賠_當月賠款月帳單_T字帳報表11505_115年.xlsx";
 
     private static ReportGenerationService serviceFor(AppConfig config) {
         return new ReportGenerationService(config, new SettingReader(config),
@@ -283,6 +284,144 @@ class ReportGenerationServiceTest {
         assertTrue(result.isSuccess(), result.message());
         assertEquals(0, result.exitCode());
         assertEquals(2, result.outputFiles().size());
+    }
+
+    @Test
+    @DisplayName("TC-N-25 保費檔缺檔：連設定年一併產出賠款 T 字帳共 3 份，前兩張不產（P-13）")
+    void producesEveryUnderwritingYearWhenPremiumFileMissing(@TempDir Path sandbox) throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+        Files.delete(TestFixtures.premiumPath(config));
+
+        ExecutionResult result = serviceFor(config).execute(ExecutionRequest.useSettingFile());
+
+        assertTrue(result.isSuccess(), result.message());
+        assertEquals(0, result.exitCode());
+        assertEquals(3, result.outputFiles().size(), "賠款 T 字帳 3 份（115 / 114 / 113）");
+        assertEquals(List.of(115, 114, 113), result.calculation().reportYears(),
+                "前兩張不產出時，設定年之賠款無人承載，必須一併產出");
+        assertEquals(0L, result.calculation().totalPremium());
+        assertEquals(0L, result.calculation().totalManagementFee());
+
+        Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
+        assertFalse(Files.exists(outputDir.resolve(T_ACCOUNT)), "保費檔缺檔時不得產出 T 字帳");
+        assertFalse(Files.exists(outputDir.resolve(SUMMARY)), "保費檔缺檔時不得產出彙整表");
+        assertTrue(Files.exists(outputDir.resolve(CLAIM_T_ACCOUNT_113)));
+        assertTrue(Files.exists(outputDir.resolve(CLAIM_T_ACCOUNT_114)));
+        assertTrue(Files.exists(outputDir.resolve(CLAIM_T_ACCOUNT_115)), "設定年之賠款 T 字帳須存在");
+
+        // 設定年那一份之金額與 U/Y 年須取自簽單年度 115，而非沿用第一階段之任何值
+        assertClaimTAccount(outputDir.resolve(CLAIM_T_ACCOUNT_115), "2026", TestFixtures.TOTAL_CLAIM);
+
+        // 承載完整性：三份加總須等於理賠檔全部已決賠款，一元都不能少
+        long carried = result.calculation().reportYears().stream()
+                .mapToLong(result.calculation()::claimOfYear).sum();
+        assertEquals(TestFixtures.CLAIM_WITHOUT_YEAR_FILTER, carried);
+
+        // 保費為 0 是「缺檔」不是「本月無保費」，報告須能區分
+        assertTrue(result.report().isPremiumFileMissing());
+        assertTrue(result.report().getPremiumReportMessage().contains("保費匯入檔不存在"),
+                result.report().getPremiumReportMessage());
+        assertTrue(result.message().contains("保費匯入檔不存在"), result.message());
+    }
+
+    @Test
+    @DisplayName("TC-N-30 保費檔存在時設定年仍須排除，改由第一階段報表承載（P-13 對照組）")
+    void excludesConfigYearWhenPremiumFileExists(@TempDir Path sandbox) throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+
+        ExecutionResult result = serviceFor(config).execute(ExecutionRequest.useSettingFile());
+
+        assertTrue(result.isSuccess(), result.message());
+        assertEquals(List.of(114, 113), result.calculation().reportYears(), "設定年須排除");
+
+        Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
+        assertFalse(Files.exists(outputDir.resolve(CLAIM_T_ACCOUNT_115)),
+                "設定年之賠款已由第一階段報表承載，不得再出一份賠款 T 字帳");
+
+        // 承載完整性：第一階段之 M3 + 兩份賠款 T 字帳 = 理賠檔全部已決賠款
+        long carried = result.calculation().reportYears().stream()
+                .mapToLong(result.calculation()::claimOfYear).sum();
+        assertEquals(TestFixtures.CLAIM_WITHOUT_YEAR_FILTER,
+                result.calculation().totalClaim() + carried);
+    }
+
+    @Test
+    @DisplayName("TC-N-26 保費檔缺檔時不得備份掉前次產出之共保月帳單")
+    void keepsPreviousPremiumReportsWhenPremiumFileMissing(@TempDir Path sandbox) throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+        ReportGenerationService service = serviceFor(config);
+        assertTrue(service.execute(ExecutionRequest.useSettingFile()).isSuccess());
+
+        Files.delete(TestFixtures.premiumPath(config));
+        ExecutionResult second = service.execute(ExecutionRequest.useSettingFile());
+
+        assertTrue(second.isSuccess(), second.message());
+        Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
+        assertTrue(Files.exists(outputDir.resolve(T_ACCOUNT)),
+                "本次不重寫，前次之 T 字帳不得被移入備份");
+        assertTrue(Files.exists(outputDir.resolve(SUMMARY)),
+                "本次不重寫，前次之彙整表不得被移入備份");
+        // 前次產出 113 / 114 兩份；本次多出的 115 份是新檔，無舊檔可備份
+        assertEquals(2, second.report().getBackupFiles().size(), "僅前次已存在之兩份賠款 T 字帳須備份");
+        assertEquals(3, second.report().getOutputFiles().size(), "本次產出 115 / 114 / 113 共 3 份");
+    }
+
+    @Test
+    @DisplayName("TC-N-27 保費檔與理賠檔皆缺檔：無任何可產出之報表，中止且不產檔")
+    void abortsWhenBothInputFilesMissing(@TempDir Path sandbox) throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+        Files.delete(TestFixtures.premiumPath(config));
+        Files.delete(TestFixtures.claimPath(config));
+
+        ExecutionResult result = serviceFor(config).execute(ExecutionRequest.useSettingFile());
+
+        assertEquals(ExecutionResult.Status.FATAL, result.status());
+        assertEquals(2, result.exitCode());
+        assertTrue(result.message().contains("R-EXC-03"), result.message());
+        assertTrue(result.message().contains("理賠匯入檔亦不存在"), result.message());
+        assertFalse(Files.exists(sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH)),
+                "不得產出任何檔案");
+    }
+
+    @Test
+    @DisplayName("TC-N-28 保費檔缺檔且全部簽單年度皆為設定年：產出設定年 1 份，不得中止（P-13）")
+    void producesConfigYearOnlyWhenPremiumMissingAndEveryYearIsConfigYear(@TempDir Path sandbox)
+            throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+        rewriteUnderwritingYearsToConfigYear(config);
+        Files.delete(TestFixtures.premiumPath(config));
+
+        ExecutionResult result = serviceFor(config).execute(ExecutionRequest.useSettingFile());
+
+        assertTrue(result.isSuccess(), result.message());
+        assertEquals(0, result.exitCode());
+        assertEquals(List.of(115), result.calculation().reportYears());
+        assertEquals(1, result.outputFiles().size());
+
+        Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
+        // 全部列都改成 115，故該份金額為理賠檔全部已決賠款
+        assertClaimTAccount(outputDir.resolve(CLAIM_T_ACCOUNT_115), "2026",
+                TestFixtures.CLAIM_WITHOUT_YEAR_FILTER);
+    }
+
+    @Test
+    @DisplayName("TC-N-29 保費檔僅有表頭：不等同缺檔，三張報表照產且保費相關金額為 0")
+    void succeedsWithHeaderOnlyPremiumFile(@TempDir Path sandbox) throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+        Path premiumPath = TestFixtures.premiumPath(config);
+        Charset charset = Charset.forName(CoInsuranceConstants.CSV_CHARSET);
+        Files.write(premiumPath, List.of(Files.readAllLines(premiumPath, charset).get(0)), charset);
+
+        ExecutionResult result = serviceFor(config).execute(ExecutionRequest.useSettingFile());
+
+        assertTrue(result.isSuccess(), result.message());
+        assertEquals(4, result.outputFiles().size(), "空檔仍走完整流程，三張報表都要有");
+        assertFalse(result.report().isPremiumFileMissing(), "空檔不是缺檔");
+        assertEquals(0L, result.calculation().totalPremium());
+        assertEquals(0L, result.calculation().totalManagementFee());
+        assertEquals(TestFixtures.TOTAL_CLAIM, result.calculation().totalClaim());
+        assertEquals(-TestFixtures.TOTAL_CLAIM, result.calculation().balanceDue(),
+                "Balance Due 為負值，照實寫入");
     }
 
     @Test

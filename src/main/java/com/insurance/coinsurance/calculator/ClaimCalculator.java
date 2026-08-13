@@ -65,14 +65,24 @@ public class ClaimCalculator {
     /**
      * M10 應產出賠款 T 字帳之年度清單（R-CALC-18）。
      *
-     * <p><b>排除條件是「等於設定年」而非「小於設定年」</b>——若出現大於設定年之簽單年度
+     * <p><b>排除設定年是有條件的</b>（P-13）：設定年之賠款平時由第一階段報表的「攤付共保賠款」承載，
+     * 故不必再出一份賠款 T 字帳。但保費檔缺檔時第一階段兩張報表<b>不產出</b>，那筆賠款就沒有任何
+     * 報表承載——此時設定年<b>必須一併產出</b>，否則金額憑空消失。
+     *
+     * <p>由此得到全案不變式：{@code Σ M9 == (第一階段報表產出 ? M3 : 0) + Σ M10 各年度賠款}，
+     * 即<b>每筆已決賠款必定且只被一張報表承載一次</b>（由 {@code verifyConsistency()} 把關）。
+     *
+     * <p>排除條件是「<b>等於</b>設定年」而非「小於設定年」——若出現大於設定年之簽單年度
      * （如設定年 115 之資料含 116），依規則仍須產出。
      *
-     * @return 依年度<b>降冪</b>之清單；全部年度皆為設定年時為空清單（R-OUT-09，屬正常業務狀態）
+     * @param premiumReportsProduced 第一階段兩張報表本次是否會產出（即保費檔是否存在）；
+     *                               為 {@code false} 時<b>不排除</b>設定年
+     * @return 依年度<b>降冪</b>之清單；理賠檔無任何資料時為空清單（R-OUT-09，屬正常業務狀態）
      */
-    public List<Integer> reportYears(Map<Integer, Long> claimByUnderwritingYear, int configYear) {
+    public List<Integer> reportYears(Map<Integer, Long> claimByUnderwritingYear, int configYear,
+                                     boolean premiumReportsProduced) {
         return claimByUnderwritingYear.keySet().stream()
-                .filter(year -> year != configYear)
+                .filter(year -> !premiumReportsProduced || year != configYear)
                 .sorted(Comparator.reverseOrder())
                 .toList();
     }

@@ -62,6 +62,19 @@ public class ExecutionReport {
      * <p>未產出時<b>須能區分原因</b>：理賠匯入檔不存在 vs 全部簽單年度皆為設定年。
      */
     private String claimTAccountMessage;
+    /**
+     * F11 保費匯入檔是否缺檔（P-12）。
+     *
+     * <p>為 {@code true} 時前兩張共保月帳單<b>未產出</b>，且 {@code summary} 之保費、管理費、
+     * Balance Due 皆非實際業務值——承辦人員須據此判斷是漏放檔案還是本月確實無保費。
+     */
+    private boolean premiumFileMissing;
+    /**
+     * 共保月帳單（T 字帳與彙整表）之產出說明（P-12）。
+     *
+     * <p>與 {@link #claimTAccountMessage} 對稱：三張報表各自的產出結果皆須在報告中可讀。
+     */
+    private String premiumReportMessage;
 
     public String getExecutedAt() {
         return executedAt;
@@ -142,5 +155,21 @@ public class ExecutionReport {
 
     public void setClaimTAccountMessage(String claimTAccountMessage) {
         this.claimTAccountMessage = claimTAccountMessage;
+    }
+
+    public boolean isPremiumFileMissing() {
+        return premiumFileMissing;
+    }
+
+    public void setPremiumFileMissing(boolean premiumFileMissing) {
+        this.premiumFileMissing = premiumFileMissing;
+    }
+
+    public String getPremiumReportMessage() {
+        return premiumReportMessage;
+    }
+
+    public void setPremiumReportMessage(String premiumReportMessage) {
+        this.premiumReportMessage = premiumReportMessage;
     }
 }

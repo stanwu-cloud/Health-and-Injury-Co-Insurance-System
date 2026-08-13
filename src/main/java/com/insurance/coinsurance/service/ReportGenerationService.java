@@ -148,11 +148,18 @@ public class ReportGenerationService {
                 request.overriddenByArgs() ? "由執行參數指定" : "取自設定檔");
 
         // [3] 讀檔
-        List<PremiumRecord> premiums = premiumCsvReader.read(premiumPath);
+        //     保費檔缺檔不再無條件中止（P-12 修訂 R-EXC-03）：賠款 T 字帳只讀理賠檔，
+        //     其產出不依賴保費檔，沒有理由被前兩張報表的缺料一起拖垮。
+        boolean premiumFileExists = Files.exists(premiumPath);
+        List<PremiumRecord> premiums = premiumFileExists ? premiumCsvReader.read(premiumPath) : List.of();
+        if (!premiumFileExists) {
+            log.warn("保費匯入檔不存在，本次不產出共保月帳單 T 字帳與彙整表：{}", premiumPath.toAbsolutePath());
+        }
         List<ClaimRecord> claims = claimCsvReader.read(claimPath);
+        report.setPremiumFileMissing(!premiumFileExists);
         report.getInputFiles().add(new ExecutionReport.InputFile(
                 premiumPath.getFileName().toString(), premiumPath.toAbsolutePath().toString(),
-                true, premiums.size()));
+                premiumFileExists, premiums.size()));
         report.getInputFiles().add(new ExecutionReport.InputFile(
                 claimPath.getFileName().toString(), claimPath.toAbsolutePath().toString(),
                 Files.exists(claimPath), claims.size()));
@@ -174,44 +181,70 @@ public class ReportGenerationService {
         }
 
         // [5] 計算
-        CalculationResult calculation = calculate(setting, premiums, claims);
+        CalculationResult calculation = calculate(setting, premiums, claims, premiumFileExists);
         log.info("計算完成：共保保費 {}，攤付共保賠款 {}，共保管理費 {}，Balance Due {}",
                 calculation.totalPremium(), calculation.totalClaim(),
                 calculation.totalManagementFee(), calculation.balanceDue());
 
         // [6] 跨報表一致性檢查
-        verifyConsistency(setting, calculation, claims);
+        verifyConsistency(setting, calculation, claims, premiumFileExists);
+
+        // [6.5] 保費檔缺檔且無可產出之賠款月帳單 → 三張全部落空，維持 B27 之中止防呆（R-EXC-03）
+        //       保費檔缺檔時 M10 不排除設定年（P-13），故此處僅在理賠檔完全無資料時才成立
+        //       須在備份之前判斷：備份會把既有輸出「移走」，中止在後會留下有備份卻無產出的空目錄
+        if (!premiumFileExists && calculation.reportYears().isEmpty()) {
+            throw new FatalException("[R-EXC-03] 找不到保費匯入檔：%s；%s，本次無任何可產出之報表"
+                    .formatted(premiumPath.toAbsolutePath(),
+                            Files.exists(claimPath) ? "且理賠匯入檔無任何資料列" : "且理賠匯入檔亦不存在"));
+        }
 
         // [7] 備份既有輸出並清除逾期備份
-        //     清單為固定 2 檔 + M10 推導之 N 檔；寫死 2 檔會使賠款 T 字帳重跑時無備份（TASK K14）
-        List<String> outputNames = new ArrayList<>(List.of(
-                TAccountCell.OUTPUT_FILE_PATTERN.formatted(yearMonth),
-                SummaryCell.OUTPUT_FILE_PATTERN.formatted(yearMonth)));
+        //     清單須與「本次真的會重寫」的檔案一致——保費檔缺檔時前兩張不產，
+        //     若仍列入備份會把上次的成果移走卻不補回（TASK K14 / P-12）
+        List<String> outputNames = new ArrayList<>();
+        if (premiumFileExists) {
+            outputNames.add(TAccountCell.OUTPUT_FILE_PATTERN.formatted(yearMonth));
+            outputNames.add(SummaryCell.OUTPUT_FILE_PATTERN.formatted(yearMonth));
+        }
         calculation.reportYears().forEach(year -> outputNames.add(
                 ClaimTAccountCell.OUTPUT_FILE_PATTERN.formatted(yearMonth, String.valueOf(year))));
         backupService.backupExisting(outputDir, outputNames, yearMonth, report);
         backupService.purgeExpired(report);
 
-        // [8] 產出報表：前兩張同進退，賠款 T 字帳份數隨資料變動（0 ~ N 份）
-        Path tAccount = tAccountWriter.write(setting, calculation, outputDir);
-        Path summary = summaryWriter.write(setting, calculation, outputDir);
-        List<Path> claimTAccounts = claimTAccountWriter.writeAll(setting, calculation, outputDir);
-
-        List<Path> outputs = new ArrayList<>(List.of(tAccount, summary));
-        outputs.addAll(claimTAccounts);
+        // [8] 產出報表：前兩張同進退（保費檔缺檔時整組不產），賠款 T 字帳份數隨資料變動（0 ~ N 份）
+        List<Path> outputs = new ArrayList<>();
+        if (premiumFileExists) {
+            outputs.add(tAccountWriter.write(setting, calculation, outputDir));
+            outputs.add(summaryWriter.write(setting, calculation, outputDir));
+        }
+        outputs.addAll(claimTAccountWriter.writeAll(setting, calculation, outputDir));
         outputs.forEach(path -> report.getOutputFiles().add(new ExecutionReport.OutputFile(
                 path.getFileName().toString(), path.toAbsolutePath().toString())));
 
+        String premiumReportMessage = describePremiumReports(premiumFileExists);
         String claimTAccountMessage = describeClaimTAccount(calculation, Files.exists(claimPath));
+        report.setPremiumReportMessage(premiumReportMessage);
         report.setClaimTAccountMessage(claimTAccountMessage);
         report.setSummary(new ExecutionReport.Summary(calculation.totalPremium(), calculation.totalClaim(),
                 calculation.totalManagementFee(), calculation.balanceDue(),
                 calculation.claimByUnderwritingYear(), calculation.reportYears()));
 
         return ExecutionResult.success(
-                "已產出 %d 年 %s 月報表 2 張；%s".formatted(
-                        setting.year(), setting.monthOfTwoDigits(), claimTAccountMessage),
+                "%d 年 %s 月——%s；%s".formatted(
+                        setting.year(), setting.monthOfTwoDigits(), premiumReportMessage, claimTAccountMessage),
                 outputs, calculation, report);
+    }
+
+    /**
+     * 共保月帳單（T 字帳與彙整表）之產出說明（P-12）。
+     *
+     * <p>保費檔缺檔時<b>不得沉默</b>：此時 {@code summary} 之保費、管理費、Balance Due 全是
+     * 以 0 計算的結果，不標示會被誤讀為「本月保費真的是 0」。
+     */
+    private String describePremiumReports(boolean premiumFileExists) {
+        return premiumFileExists
+                ? "已產出共保月帳單 2 張（T 字帳、彙整表）"
+                : "未產出共保月帳單：保費匯入檔不存在，保費與管理費相關金額均非實際值";
     }
 
     /**
@@ -226,12 +259,17 @@ public class ReportGenerationService {
                     .collect(Collectors.joining("、"));
             return "賠款月帳單 %d 張（簽單年度 %s）".formatted(calculation.reportYears().size(), years);
         }
-        return claimFileExists
-                ? "未產出賠款月帳單：無非當年度簽單資料"
-                : "未產出賠款月帳單：理賠匯入檔不存在";
+        if (!claimFileExists) {
+            return "未產出賠款月帳單：理賠匯入檔不存在";
+        }
+        // 保費檔缺檔時設定年不被排除（P-13），故「無非當年度簽單資料」僅在前兩張會產出時才是真正原因
+        return calculation.claimByUnderwritingYear().isEmpty()
+                ? "未產出賠款月帳單：理賠匯入檔無任何資料列"
+                : "未產出賠款月帳單：無非當年度簽單資料";
     }
 
-    private CalculationResult calculate(Setting setting, List<PremiumRecord> premiums, List<ClaimRecord> claims) {
+    private CalculationResult calculate(Setting setting, List<PremiumRecord> premiums, List<ClaimRecord> claims,
+                                        boolean premiumFileExists) {
         long totalPremium = premiumCalculator.totalPremium(premiums);
         Map<String, Long> premiumByCompany = premiumCalculator.premiumByCompany(premiums);
 
@@ -247,10 +285,13 @@ public class ReportGenerationService {
         long totalManagementFee = managementFeeCalculator.totalManagementFee(managementFee);
         long balanceDue = managementFeeCalculator.balanceDue(totalPremium, totalClaim, totalManagementFee);
 
-        // 第二階段：M9 取全部年度（與上方 filtered 恰為互補），M10 再排除設定年
+        // 第二階段：M9 取全部年度（與上方 filtered 恰為互補）
+        // M10 僅在第一階段兩張報表會產出時才排除設定年——否則設定年之賠款無報表承載（P-13）
         Map<Integer, Long> claimByUnderwritingYear = claimCalculator.claimByUnderwritingYear(claims);
-        List<Integer> reportYears = claimCalculator.reportYears(claimByUnderwritingYear, setting.year());
-        log.info("簽單年度分群 {}，應產出賠款月帳單之年度 {}", claimByUnderwritingYear, reportYears);
+        List<Integer> reportYears = claimCalculator.reportYears(
+                claimByUnderwritingYear, setting.year(), premiumFileExists);
+        log.info("簽單年度分群 {}，應產出賠款月帳單之年度 {}（設定年{}排除）",
+                claimByUnderwritingYear, reportYears, premiumFileExists ? "已" : "未");
 
         return new CalculationResult(totalPremium, premiumByCompany, totalClaim, claimByCompany,
                 allocatedPremium, allocatedClaim, managementFee, totalManagementFee, balanceDue,
@@ -259,10 +300,11 @@ public class ReportGenerationService {
 
     /**
      * R-CALC-16：T 字帳 G6 = 彙整表 C23、O6 = B23、G14 = I23；
-     * 第二階段追加 {@code M9[設定年] == M3} 與 {@code Σ M9 == 理賠檔全部已決賠款}。
-     * 不相等視為程式缺陷，中止並記錄。
+     * 第二階段追加 {@code M9[設定年] == M3}、{@code Σ M9 == 理賠檔全部已決賠款}
+     * 與<b>賠款承載完整性</b>（P-13）。不相等視為程式缺陷，中止並記錄。
      */
-    private void verifyConsistency(Setting setting, CalculationResult calculation, List<ClaimRecord> claims) {
+    private void verifyConsistency(Setting setting, CalculationResult calculation, List<ClaimRecord> claims,
+                                   boolean premiumFileExists) {
         long summaryPremiumTotal = 0L;
         long summaryClaimTotal = 0L;
         for (CoInsuranceCompany company : setting.companies()) {
@@ -284,7 +326,18 @@ public class ReportGenerationService {
         checkEqual("理賠檔全部已決賠款（Σ M9 vs 理賠檔加總）",
                 claimYearSum, claimCalculator.totalClaim(claims));
 
-        log.info("跨報表一致性檢查通過");
+        // 賠款承載完整性（P-13）：每筆已決賠款必定且只被一張報表承載一次。
+        // 設定年之賠款平時由第一階段報表承載；保費檔缺檔時前兩張不產，改由賠款 T 字帳承載。
+        // 這條若不成立，代表有金額憑空消失或被重複計入——正是 M10 排除條件寫錯時的症狀。
+        long carriedByPhaseOne = premiumFileExists ? calculation.totalClaim() : 0L;
+        long carriedByClaimTAccounts = calculation.reportYears().stream()
+                .mapToLong(calculation::claimOfYear).sum();
+        checkEqual("賠款承載完整性（Σ M9 vs 第一階段承載 %d + 賠款 T 字帳承載 %d）"
+                        .formatted(carriedByPhaseOne, carriedByClaimTAccounts),
+                claimYearSum, carriedByPhaseOne + carriedByClaimTAccounts);
+
+        log.info("跨報表一致性檢查通過（賠款承載：第一階段 {}、賠款 T 字帳 {}）",
+                carriedByPhaseOne, carriedByClaimTAccounts);
     }
 
     private void checkEqual(String label, long expected, long actual) {
