@@ -6,9 +6,9 @@
 | --- | --- |
 | 文件名稱 | 系統設計書 |
 | 文件代碼 | Health-and-Injury-Co-Insurance-System_DESIGN_系統設計 |
-| 目前版本 | **v1.2** |
+| 目前版本 | **v1.5** |
 | 建立日期 | 2026-08-03 |
-| 最後更新 | 2026-08-10 |
+| 最後更新 | 2026-08-14 |
 | 作者 | AI 分析 |
 | 狀態 | Draft |
 
@@ -205,14 +205,14 @@ com.insurance.coinsurance
 | --- | --- | --- | --- |
 | `constant/ClaimTAccountCell` | 賠款 T 字帳之樣板名、工作表名、檔名樣式與**獨立**儲存格常數 | R-PATH-07、R-OUT-05/08 | 常數 |
 | `model/ClaimYearSummary` | 單一簽單年度之彙總（年度 + 賠款總額 + 衍生西元年） | — | record |
-| `calculator/ClaimCalculator`（擴充） | `claimByUnderwritingYear()` 分群；`reportYears()` 排除設定年並降冪 | R-CALC-17/18 | `Map<Integer,Long>` / `List<Integer>` |
+| `calculator/ClaimCalculator`（擴充） | `claimByUnderwritingYear()` 分群；`reportYears()` **條件式**排除設定年（僅在前兩張報表會產出時排除，D18 / P-13）並降冪 | R-CALC-17/18 | `Map<Integer,Long>` / `List<Integer>` |
 | `writer/ClaimTAccountWriter` | 逐年度載入樣板、寫入 6 格、套會計格式、改工作表名、存檔 | R-OUT-08/09、R-CALC-19/20 | `List<Path> writeAll(Setting, CalculationResult, Path outputDir)` |
 
 **`ClaimTAccountWriter.writeAll()` 之處理輪廓**：
 
 ```
 writeAll(setting, calculation, outputDir):
-    years = calculation.reportYears()            // 已排除設定年、已降冪
+    years = calculation.reportYears()            // 已降冪；設定年是否排除取決於前兩張是否產出（D18）
     if years.isEmpty():
         log.info("無非當年度簽單資料，未產出賠款月帳單")
         return List.of()                          // ★不拋例外（D13）
@@ -269,7 +269,7 @@ writeAll(setting, calculation, outputDir):
    ▼
 [4] Validator 逐列檢核（收集全部錯誤）
    │  errors.isEmpty() == false ──────► ValidationFailedException
-   │                                     → 產 report.json，兩表皆不產出
+   │                                     → 產 report.json，三張報表皆不產出
    ▼
 [5] Calculator
    │  M1 共保保費 / M2 各公司保費
@@ -431,7 +431,7 @@ app:
 | `ValidationFailedException` | 匯入檔資料檢核失敗（攜帶 `List<ValidationError>`） | CLI：印全部錯誤、exit code 1；GUI：於表格列出全部錯誤 |
 | 其他 `RuntimeException` | 未預期錯誤 | 記錄堆疊、exit code 3 |
 
-**共通**：任一例外皆**不產出任何報表**（兩表同進退），但**仍產出 `report.json`** 以保留錯誤明細。
+**共通**：任一例外皆**不產出任何報表**（**三張同進退**——含第二階段之賠款 T 字帳，P-11），但**仍產出 `report.json`** 以保留錯誤明細。<br>**例外**：保費檔缺檔不屬此類（R-EXC-03 / P-12），該情境為部分產出而非全不產出。
 
 ### 8.2 錯誤訊息格式
 
@@ -516,7 +516,7 @@ app:
 | --- | --- | --- |
 | 單元測試 | calculator、validator、util | 金額計算之精確值、捨入方向、差額法、日期與長度檢核、遮蔽格式 |
 | 整合測試 | service 全流程 | 以 `檔案位子範例/` 為基準輸入，比對產出檔之儲存格值與公式 |
-| 反向測試 | 例外路徑 | 缺檔、成分 ≠ 100%、表頭錯置、出生日期 6 碼、年月不符、名稱查無對應；**二階段：全部簽單年度皆為設定年（產 0 份仍成功）、以 M8 算 Balance Due 得負值**；**P-12：保費檔缺檔（只產賠款 T 字帳）、雙檔皆缺（中止）、保費檔缺檔且無可產出年度（中止）、保費檔僅有表頭（三張照產、Balance Due 為負）** |
+| 反向測試 | 例外路徑 | 缺檔、成分 ≠ 100%、表頭錯置、出生日期 6 碼、年月不符、名稱查無對應；**二階段：全部簽單年度皆為設定年（產 0 份仍成功）、以 M8 算 Balance Due 得負值**；**P-12：保費檔缺檔（只產賠款 T 字帳）、雙檔皆缺（中止）、保費檔缺檔且無可產出年度（中止）、保費檔僅有表頭（三張照產、Balance Due 為負）**；**P-13：保費檔缺檔時設定年不排除（產 3 份）、保費檔存在時設定年須排除之對照組** |
 | 手動驗收 | GUI 與部署 | fat jar 雙擊、畫面錯誤清單、備份行為 |
 
 **測試資料基準**：`docs/規格來源/第一階段-共保月帳單/檔案位子範例/`（R-04 已同步，可直接使用）。
@@ -545,6 +545,7 @@ app:
 
 | 版本 | 日期 | 內容 |
 | --- | --- | --- |
+| **v1.5** | **2026-08-14** | **全文一致性校正（無設計變更）**：① §5.1 流程圖與 §8.1 之「檢核失敗 → **兩表**皆不產出」更正為「**三張**報表同進退」（P-11 定案賠款 T 字帳共用同一組檢核），並註明保費檔缺檔不屬此類；② §4.2 元件表與 `writeAll()` 虛擬碼註解之「`reportYears()` **已排除設定年**」改為**條件式**敘述（D18 / P-13）；③ §11 反向測試補列 P-13 之兩項；④ 文件資訊之目前版本／最後更新補正（原停留 v1.2 / 2026-08-10） |
 | **v1.4** | **2026-08-13** | **P-13：`M10` 之「排除設定年」改為條件式**。新增設計決策 **D18**（條件收進 `ClaimCalculator.reportYears()`，不在服務層事後補設定年）與 **D19**（以「賠款承載完整性」作為執行期不變式，因排除條件寫錯的症狀是金額憑空消失、帳面看不出來）；§4.2 服務層編排第 1 / 6 點改寫並新增第 7 點；§5.1 主流程圖之 [5] / [6] 更新 |
 | **v1.3** | **2026-08-13** | **P-12：保費檔缺檔不再阻擋賠款 T 字帳**。新增關鍵設計決策 **D15 ~ D17**（存在性判斷上移至服務層、備份與寫出由同一旗標控制、中止點置於一致性檢查之後備份之前）；§4.2「服務層編排之調整」第 2 / 3 / 4 點改寫並新增第 6 點；§5.1 主流程圖之 [2] / [3] / [6] / [7] / [8] 更新；§8.2 `FatalException` 適用範圍加註；§11 反向測試補列四種組合 |
 | **v1.2** | **2026-08-10** | **納入第二階段（賠款 T 字帳）設計**：§3.2 套件結構新增 `ClaimTAccountCell` / `ClaimYearSummary` / `ClaimTAccountWriter`；§4 模組職責擴充至 R-CALC-01~20、R-OUT-01~09；新增 **§4.2 第二階段新增元件**（元件表、`writeAll()` 處理輪廓、服務層編排 5 點調整）；新增關鍵設計決策 **D10 ~ D14**（另立常數類別、逐份獨立載入樣板、寫值不寫公式、空清單不拋例外、樣板檢查延後）；§5.1 主流程與 §5.2 相依順序補上二階段分支與「禁止套用 M8」警示；§6.1 `CalculationResult` 追加 M9 / M10、新增 `ClaimYearSummary`；§6.3 新增 `ClaimTAccountCell` 常數對照表並標出與 `TAccountCell` 之差異；§10 新增擴充點 X8；§11 測試策略與驗收基準補列二階段；§12 新增 D-06 / D-07 |
