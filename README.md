@@ -223,7 +223,8 @@ mvnw.cmd clean package -DskipTests
 | `build.bat` | 內建 `JAVA_HOME`＝`C:\Program Files\Amazon Corretto\jdk17.0.18_9`（開發機） | 需改檔 |
 | `拜託執行我.bat` | 內建 `JAVA_EXE`＝`C:\Users\user\.jdks\corretto-17.0.18\bin\java.exe`（**業務方機器**） | 需改檔；在開發機上會停在「找不到 Java」，屬預期行為 |
 
-`拜託執行我.bat` 仍是寫死路徑，尚未套用探測邏輯（另有 `popd` 無對應 `pushd` 的既存問題）。
+`拜託執行我.bat` 仍是寫死路徑，尚未套用探測邏輯。
+兩支 `.bat` 皆以 `pushd "%~dp0"` 開頭、於**每個結束點** `popd`，因此自任何目錄呼叫都能正確解析 `config/` `input/` `output/` 等相對路徑，且不會污染呼叫端的當前目錄。
 `.bat` 一律為 **UTF-8 無 BOM + CRLF**（檔內以 `chcp 65001` 切碼頁）；存成 LF 或加上 BOM，cmd 會報出與實際無關的錯誤訊息。
 
 第二階段一律在 `feature/phase-two` 開發，驗收後才合回 `dev`。
