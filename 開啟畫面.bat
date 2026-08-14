@@ -1,5 +1,54 @@
 @echo off
 chcp 65001 >nul
+
+REM 切到本檔所在目錄：雙擊執行或自其他目錄呼叫時，皆可正確解析
+REM config / input / output 等相對路徑（每個結束點皆以 popd 還原）
+pushd "%~dp0"
+
+echo ========================================
+echo   自動執行 Build + Run
+echo ========================================
+echo.
+
+REM ===== 指定 Java =====
+set "JAVA_EXE=C:\Users\user\.jdks\corretto-17.0.18\bin\java.exe"
+
+REM ===== 檢查 Java =====
+if not exist "%JAVA_EXE%" (
+    echo [錯誤] 找不到 Java：
+    echo %JAVA_EXE%
+    popd
+    pause
+    exit /b 1
+)
+
+REM ===== 設定 JAVA_HOME =====
+for %%i in ("%JAVA_EXE%") do set "JAVA_HOME=%%~dpi"
+set "JAVA_HOME=%JAVA_HOME:~0,-1%"
+for %%i in ("%JAVA_HOME%") do set "JAVA_HOME=%%~dpi"
+set "JAVA_HOME=%JAVA_HOME:~0,-1%"
+
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+
+echo 使用 Java：
+"%JAVA_EXE%" -version
+echo.
+
+REM ========================================
+REM Step 1. Build
+REM ========================================
+echo [Step 1] 編譯中...
+call mvnw.cmd clean package -DskipTests -q
+
+if %ERRORLEVEL% neq 0 (
+    echo ❌ 編譯失敗，停止執行
+    popd
+    pause
+    exit /b 1
+)
+
+echo ✅ 編譯成功！
+echo.
 setlocal
 
 REM ========================================================================

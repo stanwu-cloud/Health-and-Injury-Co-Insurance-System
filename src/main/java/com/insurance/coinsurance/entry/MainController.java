@@ -63,7 +63,7 @@ public class MainController {
     }
 
     private VBox buildTop() {
-        yearField.setPromptText("民國年，例 115");
+        yearField.setPromptText("民國年");
         yearField.setPrefColumnCount(6);
         monthField.setPromptText("月，例 5");
         monthField.setPrefColumnCount(4);
