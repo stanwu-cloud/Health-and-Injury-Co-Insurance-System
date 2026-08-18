@@ -17,6 +17,7 @@ import com.insurance.coinsurance.validator.ClaimValidator;
 import com.insurance.coinsurance.validator.PeriodValidator;
 import com.insurance.coinsurance.validator.PremiumValidator;
 import com.insurance.coinsurance.writer.BackupService;
+import com.insurance.coinsurance.writer.ClaimSummaryWriter;
 import com.insurance.coinsurance.writer.ClaimTAccountWriter;
 import com.insurance.coinsurance.writer.ReportJsonWriter;
 import com.insurance.coinsurance.writer.SummaryWriter;
@@ -46,6 +47,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,6 +59,9 @@ class ReportGenerationServiceTest {
     private static final String CLAIM_T_ACCOUNT_113 = "共保理賠_當月賠款月帳單_T字帳報表11505_113年.xlsx";
     private static final String CLAIM_T_ACCOUNT_114 = "共保理賠_當月賠款月帳單_T字帳報表11505_114年.xlsx";
     private static final String CLAIM_T_ACCOUNT_115 = "共保理賠_當月賠款月帳單_T字帳報表11505_115年.xlsx";
+    private static final String CLAIM_SUMMARY_113 = "共保理賠_當月賠款月帳單_彙總表11505_113年.xlsx";
+    private static final String CLAIM_SUMMARY_114 = "共保理賠_當月賠款月帳單_彙總表11505_114年.xlsx";
+    private static final String CLAIM_SUMMARY_115 = "共保理賠_當月賠款月帳單_彙總表11505_115年.xlsx";
 
     private static ReportGenerationService serviceFor(AppConfig config) {
         return new ReportGenerationService(config, new SettingReader(config),
@@ -65,7 +70,8 @@ class ReportGenerationServiceTest {
                 new PremiumCalculator(), new ClaimCalculator(),
                 new AllocationCalculator(), new ManagementFeeCalculator(),
                 new BackupService(config), new TAccountWriter(config), new SummaryWriter(config),
-                new ClaimTAccountWriter(config), new ReportJsonWriter(config));
+                new ClaimTAccountWriter(config), new ClaimSummaryWriter(config),
+                new ReportJsonWriter(config));
     }
 
     @Test
@@ -76,7 +82,8 @@ class ReportGenerationServiceTest {
 
         assertTrue(result.isSuccess(), result.message());
         assertEquals(0, result.exitCode());
-        assertEquals(4, result.outputFiles().size(), "兩張共保報表 + 兩份賠款 T 字帳");
+        assertEquals(6, result.outputFiles().size(),
+                "兩張共保報表 + 兩份賠款 T 字帳 + 兩份賠款彙總表");
 
         assertEquals(TestFixtures.TOTAL_PREMIUM, result.calculation().totalPremium());
         assertEquals(TestFixtures.TOTAL_CLAIM, result.calculation().totalClaim());
@@ -173,7 +180,7 @@ class ReportGenerationServiceTest {
 
         Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
         try (var files = Files.list(outputDir)) {
-            assertEquals(4, files.count(), "輸出目錄須有 4 檔");
+            assertEquals(6, files.count(), "輸出目錄須有 6 檔");
         }
 
         assertClaimTAccount(outputDir.resolve(CLAIM_T_ACCOUNT_113), "2024", TestFixtures.CLAIM_YEAR_113);
@@ -233,10 +240,12 @@ class ReportGenerationServiceTest {
         assertEquals(TestFixtures.TOTAL_PREMIUM - TestFixtures.TOTAL_MANAGEMENT_FEE,
                 result.calculation().balanceDue());
 
-        assertEquals(2, result.outputFiles().size(), "賠款 T 字帳 0 份");
+        assertEquals(2, result.outputFiles().size(), "兩張賠款報表皆 0 份");
         assertTrue(result.calculation().reportYears().isEmpty());
         assertTrue(result.report().getClaimTAccountMessage().contains("理賠匯入檔不存在"),
                 result.report().getClaimTAccountMessage());
+        assertTrue(result.report().getClaimSummaryMessage().contains("理賠匯入檔不存在"),
+                result.report().getClaimSummaryMessage());
     }
 
     @Test
@@ -249,7 +258,7 @@ class ReportGenerationServiceTest {
 
         assertTrue(result.isSuccess(), result.message());
         assertEquals(0, result.exitCode());
-        assertEquals(2, result.outputFiles().size(), "賠款 T 字帳 0 份");
+        assertEquals(2, result.outputFiles().size(), "兩張賠款報表皆 0 份");
         assertTrue(result.calculation().reportYears().isEmpty());
         // 全部列都算進設定年，故 M3 = Σ M9 = 理賠檔全部賠款
         assertEquals(TestFixtures.CLAIM_WITHOUT_YEAR_FILTER, result.calculation().totalClaim());
@@ -257,6 +266,8 @@ class ReportGenerationServiceTest {
         String message = result.report().getClaimTAccountMessage();
         assertTrue(message.contains("無非當年度簽單資料"), message);
         assertFalse(message.contains("理賠匯入檔不存在"), "須與缺檔情境可區分：" + message);
+        assertTrue(result.report().getClaimSummaryMessage().contains("無非當年度簽單資料"),
+                result.report().getClaimSummaryMessage());
     }
 
     @Test
@@ -296,7 +307,8 @@ class ReportGenerationServiceTest {
 
         assertTrue(result.isSuccess(), result.message());
         assertEquals(0, result.exitCode());
-        assertEquals(3, result.outputFiles().size(), "賠款 T 字帳 3 份（115 / 114 / 113）");
+        assertEquals(6, result.outputFiles().size(),
+                "兩張賠款報表各 3 份（115 / 114 / 113）");
         assertEquals(List.of(115, 114, 113), result.calculation().reportYears(),
                 "前兩張不產出時，設定年之賠款無人承載，必須一併產出");
         assertEquals(0L, result.calculation().totalPremium());
@@ -308,6 +320,10 @@ class ReportGenerationServiceTest {
         assertTrue(Files.exists(outputDir.resolve(CLAIM_T_ACCOUNT_113)));
         assertTrue(Files.exists(outputDir.resolve(CLAIM_T_ACCOUNT_114)));
         assertTrue(Files.exists(outputDir.resolve(CLAIM_T_ACCOUNT_115)), "設定年之賠款 T 字帳須存在");
+        // 兩張賠款報表共用同一份 M10，份數與年度須完全一致（D23）
+        assertTrue(Files.exists(outputDir.resolve(CLAIM_SUMMARY_113)));
+        assertTrue(Files.exists(outputDir.resolve(CLAIM_SUMMARY_114)));
+        assertTrue(Files.exists(outputDir.resolve(CLAIM_SUMMARY_115)), "設定年之賠款彙總表須存在");
 
         // 設定年那一份之金額與 U/Y 年須取自簽單年度 115，而非沿用第一階段之任何值
         assertClaimTAccount(outputDir.resolve(CLAIM_T_ACCOUNT_115), "2026", TestFixtures.TOTAL_CLAIM);
@@ -337,6 +353,8 @@ class ReportGenerationServiceTest {
         Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
         assertFalse(Files.exists(outputDir.resolve(CLAIM_T_ACCOUNT_115)),
                 "設定年之賠款已由第一階段報表承載，不得再出一份賠款 T 字帳");
+        assertFalse(Files.exists(outputDir.resolve(CLAIM_SUMMARY_115)),
+                "同理，也不得再出一份賠款彙總表");
 
         // 承載完整性：第一階段之 M3 + 兩份賠款 T 字帳 = 理賠檔全部已決賠款
         long carried = result.calculation().reportYears().stream()
@@ -361,9 +379,11 @@ class ReportGenerationServiceTest {
                 "本次不重寫，前次之 T 字帳不得被移入備份");
         assertTrue(Files.exists(outputDir.resolve(SUMMARY)),
                 "本次不重寫，前次之彙整表不得被移入備份");
-        // 前次產出 113 / 114 兩份；本次多出的 115 份是新檔，無舊檔可備份
-        assertEquals(2, second.report().getBackupFiles().size(), "僅前次已存在之兩份賠款 T 字帳須備份");
-        assertEquals(3, second.report().getOutputFiles().size(), "本次產出 115 / 114 / 113 共 3 份");
+        // 前次產出 113 / 114 各兩張共 4 份；本次多出的 115 兩份是新檔，無舊檔可備份
+        assertEquals(4, second.report().getBackupFiles().size(),
+                "僅前次已存在之 113 / 114 各兩張賠款報表須備份");
+        assertEquals(6, second.report().getOutputFiles().size(),
+                "本次產出 115 / 114 / 113 各兩張共 6 份");
     }
 
     @Test
@@ -396,7 +416,7 @@ class ReportGenerationServiceTest {
         assertTrue(result.isSuccess(), result.message());
         assertEquals(0, result.exitCode());
         assertEquals(List.of(115), result.calculation().reportYears());
-        assertEquals(1, result.outputFiles().size());
+        assertEquals(2, result.outputFiles().size(), "設定年之 T 字帳與彙總表各 1 份");
 
         Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
         // 全部列都改成 115，故該份金額為理賠檔全部已決賠款
@@ -415,7 +435,7 @@ class ReportGenerationServiceTest {
         ExecutionResult result = serviceFor(config).execute(ExecutionRequest.useSettingFile());
 
         assertTrue(result.isSuccess(), result.message());
-        assertEquals(4, result.outputFiles().size(), "空檔仍走完整流程，三張報表都要有");
+        assertEquals(6, result.outputFiles().size(), "空檔仍走完整流程，四種報表都要有");
         assertFalse(result.report().isPremiumFileMissing(), "空檔不是缺檔");
         assertEquals(0L, result.calculation().totalPremium());
         assertEquals(0L, result.calculation().totalManagementFee());
@@ -425,7 +445,7 @@ class ReportGenerationServiceTest {
     }
 
     @Test
-    @DisplayName("TC-E2E-11 重複執行時 4 檔全部移入備份目錄，report.json 含 M9 / M10")
+    @DisplayName("TC-E2E-11 / TC-E2E-14 重複執行時 6 檔全部移入備份目錄，report.json 含 M9 / M10 與四則訊息")
     void backsUpPreviousOutput(@TempDir Path sandbox) throws IOException {
         AppConfig config = TestFixtures.sandboxConfig(sandbox);
         ReportGenerationService service = serviceFor(config);
@@ -436,20 +456,175 @@ class ReportGenerationServiceTest {
 
         Path backupMonthDir = sandbox.resolve("backup").resolve(TestFixtures.YEAR_MONTH);
         assertTrue(Files.isDirectory(backupMonthDir), "應建立備份目錄");
-        assertEquals(4, second.report().getBackupFiles().size(), "4 檔皆須備份");
+        assertEquals(6, second.report().getBackupFiles().size(), "6 檔皆須備份");
         try (var stamps = Files.list(backupMonthDir)) {
             Path stampDir = stamps.findFirst().orElseThrow();
             assertTrue(Files.exists(stampDir.resolve(T_ACCOUNT)));
             assertTrue(Files.exists(stampDir.resolve(SUMMARY)));
             assertTrue(Files.exists(stampDir.resolve(CLAIM_T_ACCOUNT_113)));
             assertTrue(Files.exists(stampDir.resolve(CLAIM_T_ACCOUNT_114)));
+            // 備份清單若漏加彙總表，重跑時它會被直接覆寫而無備份（TASK K22）
+            assertTrue(Files.exists(stampDir.resolve(CLAIM_SUMMARY_113)));
+            assertTrue(Files.exists(stampDir.resolve(CLAIM_SUMMARY_114)));
         }
 
-        assertEquals(4, second.report().getOutputFiles().size());
+        assertEquals(6, second.report().getOutputFiles().size());
         var summary = second.report().getSummary();
         assertEquals(List.of(114, 113), summary.reportYears());
         assertEquals(TestFixtures.CLAIM_YEAR_114, summary.claimByUnderwritingYear().get(114));
         assertEquals(TestFixtures.CLAIM_YEAR_113, summary.claimByUnderwritingYear().get(113));
+
+        // F13：四張報表各有一則產出說明，皆須可讀
+        assertNotNull(second.report().getPremiumReportMessage());
+        assertNotNull(second.report().getClaimTAccountMessage());
+        assertNotNull(second.report().getClaimSummaryMessage());
+        assertTrue(second.report().getClaimSummaryMessage().contains("賠款彙總表"),
+                second.report().getClaimSummaryMessage());
+    }
+
+    @Test
+    @DisplayName("TC-E2E-12 賠款彙總表：兩份逐格內容、G 欄 16 家逐家分攤、J23 為 0")
+    void claimSummariesEndToEnd(@TempDir Path sandbox) throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+        ExecutionResult result = serviceFor(config).execute(ExecutionRequest.useSettingFile());
+
+        assertTrue(result.isSuccess(), result.message());
+        assertEquals(List.of(114, 113), result.calculation().reportYears());
+
+        Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
+        assertClaimSummary(outputDir.resolve(CLAIM_SUMMARY_113), "Ｕ/Y：2024",
+                TestFixtures.CLAIM_YEAR_113, TestFixtures.CLAIM_SUMMARY_ALLOCATION_113,
+                TestFixtures.CLAIM_SUMMARY_NET_113);
+        assertClaimSummary(outputDir.resolve(CLAIM_SUMMARY_114), "Ｕ/Y：2025",
+                TestFixtures.CLAIM_YEAR_114, TestFixtures.CLAIM_SUMMARY_ALLOCATION_114,
+                TestFixtures.CLAIM_SUMMARY_NET_114);
+
+        // 兩份之 A3 與金額須互不相同——重用 Workbook 會殘留前一年度值（TASK K13）
+        try (Workbook w113 = openAndEvaluate(outputDir.resolve(CLAIM_SUMMARY_113));
+             Workbook w114 = openAndEvaluate(outputDir.resolve(CLAIM_SUMMARY_114))) {
+            assertNotEquals(stringAt(w113.getSheetAt(0), "A3"), stringAt(w114.getSheetAt(0), "A3"));
+            assertNotEquals(numericAt(w113.getSheetAt(0), "C23"), numericAt(w114.getSheetAt(0), "C23"));
+        }
+    }
+
+    /**
+     * 逐格斷言一份賠款彙總表（第二階段問題追蹤清單 §5.4.2、MAPPING §11.4）。
+     *
+     * <p><b>G 欄之 16 列逐家比對不可省</b>：若分攤基準誤用逐家 M12 而非年度合計，
+     * 中央再保之差額法會吸收全部差異，{@code C23} / {@code G23} / {@code J23}
+     * 三個合計仍然全對，只有本方法的逐家斷言會失敗（TASK K20 / TC-N-32）。
+     */
+    private static void assertClaimSummary(Path path, String expectedUy, long expectedClaim,
+                                           long[] expectedAllocation, long expectedNet) throws IOException {
+        try (Workbook workbook = openAndEvaluate(path)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            assertEquals("共保賠款月帳單-彙總表", sheet.getSheetName(), "工作表名不帶年度");
+            assertEquals("共保賠款月帳單", stringAt(sheet, "A2"), "A2 為範本既有，不覆寫");
+
+            // A3 取簽單年度、E3 仍取設定檔年月（R-CALC-23）
+            assertEquals(expectedUy, stringAt(sheet, "A3"), "U/Y 之年度來源為簽單年度");
+            assertEquals("資料統計年月：115年05月", stringAt(sheet, "E3"), "資料統計年月仍取設定檔");
+
+            // 第 6 列（計算說明）不覆寫，且範本須為校正後之版本（P-14）
+            assertEquals("(4) = (2) - (3)", stringAt(sheet, "D6"));
+            assertEquals("(9)=(6)x6%", stringAt(sheet, "I6"));
+
+            // 理賠全部集中於 N05（樣板第 15 列），C 欄僅該列有值
+            assertEquals(expectedClaim, numericAt(sheet, "C15"));
+            assertEquals(expectedClaim, numericAt(sheet, "C23"));
+            assertEquals(-expectedClaim, numericAt(sheet, "D15"), "D = B − C，而 B 恆 0");
+            assertEquals(expectedNet, numericAt(sheet, "J15"), "J = D + H + I");
+
+            // G 欄逐家分攤（中央再保為差額法）
+            for (int i = 0; i < expectedAllocation.length; i++) {
+                String reference = "G" + (7 + i);
+                assertEquals(expectedAllocation[i], numericAt(sheet, reference),
+                        reference + " 之分攤基準為該年度合計 C23，非該公司自身賠款");
+            }
+            assertEquals(expectedClaim, numericAt(sheet, "G23"), "分攤總額須等於原額");
+
+            // B / F / I 三欄恆 0（含合計列）——本報表不讀保費匯入檔（P-17）
+            for (int row = 7; row <= 23; row++) {
+                for (String column : List.of("B", "F", "I")) {
+                    assertEquals(0L, numericAt(sheet, column + row), column + row + " 恆為 0");
+                }
+            }
+
+            // 零和：J23 = −ΣC + ΣG = 0（R-CALC-24）
+            assertEquals(0L, numericAt(sheet, "J23"), "淨收付共保費合計恆為 0");
+        }
+    }
+
+    @Test
+    @DisplayName("TC-E2E-13 賠款彙總表之公式字串與第一階段彙整表逐字相同")
+    void claimSummaryReusesPhaseOneFormulas(@TempDir Path sandbox) throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+        assertTrue(serviceFor(config).execute(ExecutionRequest.useSettingFile()).isSuccess());
+
+        Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
+        try (Workbook summary = open(outputDir.resolve(SUMMARY));
+             Workbook claimSummary = open(outputDir.resolve(CLAIM_SUMMARY_114))) {
+            Sheet phaseOne = summary.getSheetAt(0);
+            Sheet phaseTwo = claimSummary.getSheetAt(0);
+
+            // 抽出 SummarySheetPainter 後，兩張報表之公式應由同一處產生（TASK K19 / DESIGN D20）
+            for (int row = 7; row <= 23; row++) {
+                for (String column : List.of("D", "F", "G", "H", "I", "J")) {
+                    String reference = column + row;
+                    assertEquals(cell(phaseOne, reference).getCellFormula(),
+                            cell(phaseTwo, reference).getCellFormula(),
+                            reference + " 之公式須與第一階段彙整表逐字相同");
+                }
+            }
+            // 中央再保之差額法（第 22 列）亦同
+            assertEquals("-1*$B$23-SUM(F7:F21)", cell(phaseTwo, "F22").getCellFormula());
+            assertEquals("ROUND($C$23-SUM(G7:G21),0)", cell(phaseTwo, "G22").getCellFormula());
+        }
+    }
+
+    @Test
+    @DisplayName("TC-N-31 / TC-N-32 中央再保只能用差額法；G 欄誤用逐家賠款時 J23 仍為 0，故逐家斷言不可省")
+    void reinsurerMustUseDifferenceMethodAndZeroSumCannotCatchPerCompanyMisuse(@TempDir Path sandbox)
+            throws IOException {
+        AppConfig config = TestFixtures.sandboxConfig(sandbox);
+        assertTrue(serviceFor(config).execute(ExecutionRequest.useSettingFile()).isSuccess());
+
+        Path outputDir = sandbox.resolve("output").resolve(TestFixtures.YEAR_MONTH);
+        try (Workbook workbook = openAndEvaluate(outputDir.resolve(CLAIM_SUMMARY_114))) {
+            Sheet sheet = workbook.getSheetAt(0);
+
+            // TC-N-31：以成分直算會得 2,683，與差額法之 2,680 相差 3 元（其餘 15 家之捨入尾差）
+            assertEquals(2_680L, numericAt(sheet, "G22"));
+            assertNotEquals(TestFixtures.REINSURER_DIRECT_114, numericAt(sheet, "G22"),
+                    "中央再保只能用差額法，不得以 ROUND(C23 × 7%) 直算");
+
+            // TC-N-32：模擬「G 欄誤用逐家 M12」——樣本理賠全在 N05，其餘 15 家會歸零，
+            // 但中央再保之差額法會把差額全數吸收，ΣG 仍等於 ΣC，J23 依然是 0。
+            long misusedReinsurer = TestFixtures.CLAIM_YEAR_114 - 2_300L;  // 只剩 N05 的 2,300
+            assertEquals(TestFixtures.CLAIM_YEAR_114, 2_300L + misusedReinsurer,
+                    "誤用逐家分攤時零和仍成立——零和檢查擋不住此錯誤");
+            assertNotEquals(misusedReinsurer, numericAt(sheet, "G22"),
+                    "真正的 G22 是 2,680，不是誤用逐家分攤後的 36,031");
+        }
+    }
+
+    @Test
+    @DisplayName("TC-N-35 賠款彙總表樣板缺檔：須產出時中止、不需產出時照常成功")
+    void claimSummaryTemplateMissing(@TempDir Path sandbox) throws IOException {
+        AppConfig needed = TestFixtures.sandboxConfig(sandbox.resolve("needed"));
+        Files.delete(sandbox.resolve("needed").resolve("templet").resolve("CLAIM_SUMMARY.xlsx"));
+        ExecutionResult aborted = serviceFor(needed).execute(ExecutionRequest.useSettingFile());
+        assertEquals(ExecutionResult.Status.FATAL, aborted.status());
+        assertEquals(2, aborted.exitCode());
+        assertTrue(aborted.message().contains("CLAIM_SUMMARY.xlsx"), aborted.message());
+
+        // 不需產出時不得因樣板缺檔而拖垮其他報表（DESIGN D14）
+        AppConfig notNeeded = TestFixtures.sandboxConfig(sandbox.resolve("not-needed"));
+        rewriteUnderwritingYearsToConfigYear(notNeeded);
+        Files.delete(sandbox.resolve("not-needed").resolve("templet").resolve("CLAIM_SUMMARY.xlsx"));
+        ExecutionResult succeeded = serviceFor(notNeeded).execute(ExecutionRequest.useSettingFile());
+        assertTrue(succeeded.isSuccess(), succeeded.message());
+        assertEquals(2, succeeded.outputFiles().size(), "前兩張照常產出");
     }
 
     /** 將理賠檔之簽單年度（索引 5）全部改為設定年，使 M10 為空。 */
@@ -518,6 +693,13 @@ class ReportGenerationServiceTest {
         try (InputStream in = Files.newInputStream(path)) {
             return WorkbookFactory.create(in);
         }
+    }
+
+    /** 開檔並重算全部公式——彙整／彙總類報表之值全靠公式，未重算讀到的是空的快取。 */
+    private static Workbook openAndEvaluate(Path path) throws IOException {
+        Workbook workbook = open(path);
+        XSSFFormulaEvaluator.evaluateAllFormulaCells(workbook);
+        return workbook;
     }
 
     private static XSSFWorkbook openXssf(Path path) throws IOException {

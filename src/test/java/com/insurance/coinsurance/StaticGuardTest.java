@@ -73,6 +73,54 @@ class StaticGuardTest {
                 () -> "測試引用了產出範例檔之過時金額（R-06 禁止）：" + offenders);
     }
 
+    @Test
+    @DisplayName("測試程式不得以中央再保之成分直算值作為期望值（第四張報表）")
+    void testsDoNotUseDirectlyCalculatedReinsurerShare() throws IOException {
+        // 中央再保只能用差額法；下列為 7% 直算之結果，與差額法差 3 ~ 5 元（R-CALC-22 禁止事項）
+        List<String> directValues = List.of("2272", "2683", "8885");
+        List<String> offenders = new ArrayList<>();
+
+        for (Path file : javaFiles(TEST)) {
+            String fileName = file.getFileName().toString();
+            // 本檔列舉黑名單；TestFixtures 以具名常數保存反向斷言用之值
+            if (fileName.equals("StaticGuardTest.java") || fileName.equals("TestFixtures.java")) {
+                continue;
+            }
+            String source = Files.readString(file, StandardCharsets.UTF_8);
+            for (String direct : directValues) {
+                if (source.contains(direct) || source.contains(withThousandsSeparator(direct))) {
+                    offenders.add("%s → %s".formatted(file, direct));
+                }
+            }
+        }
+        assertTrue(offenders.isEmpty(),
+                () -> "測試以中央再保之成分直算值作為期望值（只能用差額法）：" + offenders);
+    }
+
+    @Test
+    @DisplayName("ClaimSummaryCell 獨立於 SummaryCell，且不得定義 F27 殘值防護")
+    void claimSummaryCellIsIndependent() throws ReflectiveOperationException {
+        List<String> references = new ArrayList<>();
+        for (java.lang.reflect.Field field
+                : com.insurance.coinsurance.constant.ClaimSummaryCell.class.getDeclaredFields()) {
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())
+                    && field.getType() == String.class) {
+                references.add((String) field.get(null));
+            }
+        }
+
+        // F27 是第一階段「範例檔」之手誤殘值防護；CLAIM_SUMMARY.xlsx 實測無此殘值
+        assertTrue(references.stream().noneMatch("F27"::equals),
+                "ClaimSummaryCell 不需 F27 防護");
+        // 檔名與工作表名必須與第一階段不同，否則兩張報表會互相覆寫
+        assertTrue(references.contains("CLAIM_SUMMARY.xlsx"));
+        assertTrue(references.contains("共保賠款月帳單-彙總表"));
+        assertTrue(references.stream().noneMatch(
+                        reference -> reference.equals(
+                                com.insurance.coinsurance.constant.SummaryCell.OUTPUT_FILE_PATTERN)),
+                "輸出檔名樣式不得與第一階段彙整表相同");
+    }
+
     private static String withThousandsSeparator(String digits) {
         return new StringBuilder(digits).insert(digits.length() - 3, '_').toString();
     }

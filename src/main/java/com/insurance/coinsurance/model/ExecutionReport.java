@@ -72,9 +72,17 @@ public class ExecutionReport {
     /**
      * 共保月帳單（T 字帳與彙整表）之產出說明（P-12）。
      *
-     * <p>與 {@link #claimTAccountMessage} 對稱：三張報表各自的產出結果皆須在報告中可讀。
+     * <p>與 {@link #claimTAccountMessage} 對稱：各張報表之產出結果皆須在報告中可讀。
      */
     private String premiumReportMessage;
+    /**
+     * F13 賠款彙總表之產出說明（第二階段·第四張報表，P-22）。
+     *
+     * <p>與 {@link #premiumReportMessage} / {@link #claimTAccountMessage} 並列，
+     * <b>四張報表各有一則</b>。本報表與賠款 T 字帳共用同一份 {@code M10}，
+     * 故份數與未產出之原因永遠相同，訊息只差報表名稱。
+     */
+    private String claimSummaryMessage;
 
     public String getExecutedAt() {
         return executedAt;
@@ -171,5 +179,13 @@ public class ExecutionReport {
 
     public void setPremiumReportMessage(String premiumReportMessage) {
         this.premiumReportMessage = premiumReportMessage;
+    }
+
+    public String getClaimSummaryMessage() {
+        return claimSummaryMessage;
+    }
+
+    public void setClaimSummaryMessage(String claimSummaryMessage) {
+        this.claimSummaryMessage = claimSummaryMessage;
     }
 }

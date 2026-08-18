@@ -144,4 +144,32 @@ class ClaimTAccountTest {
         assertNotEquals(configAdYear, new ClaimYearSummary(113, 0L).adYear(),
                 "P4 之來源不得為設定年");
     }
+
+    @Test
+    @DisplayName("TC-U-20 簽單年度 × 公司二維分群（M12）——Σ M12[y] 等於 M9[y]、M12[設定年] 等於 M4")
+    void groupsClaimByYearAndCompany() {
+        List<ClaimRecord> claims = TestFixtures.sampleClaims();
+
+        Map<Integer, Map<String, Long>> byYearAndCompany = claimCalculator.claimByYearAndCompany(claims);
+        Map<Integer, Long> byYear = claimCalculator.claimByUnderwritingYear(claims);
+
+        // 樣本理賠全部集中於 N05，其餘 15 家在各年度皆無鍵值
+        assertEquals(Map.of(TestFixtures.CLAIM_ONLY_COMPANY, TestFixtures.TOTAL_CLAIM),
+                byYearAndCompany.get(115));
+        assertEquals(Map.of(TestFixtures.CLAIM_ONLY_COMPANY, TestFixtures.CLAIM_YEAR_114),
+                byYearAndCompany.get(114));
+        assertEquals(Map.of(TestFixtures.CLAIM_ONLY_COMPANY, TestFixtures.CLAIM_YEAR_113),
+                byYearAndCompany.get(113));
+
+        assertEquals(List.of(115, 114, 113), List.copyOf(byYearAndCompany.keySet()), "年度須降冪");
+
+        // 不變式：M12 只是 M9 再多切一層公司維度，逐年度總額必相等
+        byYearAndCompany.forEach((year, byCompany) -> assertEquals(byYear.get(year),
+                byCompany.values().stream().mapToLong(Long::longValue).sum(),
+                "簽單年度 " + year + " 之 Σ M12 須等於 M9"));
+
+        // 不變式：M12[設定年] 恆等於 M4（第一階段彙整表 C 欄之來源）
+        List<ClaimRecord> filtered = claimCalculator.filterByUnderwritingYear(claims, TestFixtures.YEAR);
+        assertEquals(claimCalculator.claimByCompany(filtered), byYearAndCompany.get(TestFixtures.YEAR));
+    }
 }

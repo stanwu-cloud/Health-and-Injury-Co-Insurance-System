@@ -86,4 +86,26 @@ public class ClaimCalculator {
                 .sorted(Comparator.reverseOrder())
                 .toList();
     }
+
+    /**
+     * M12 各簽單年度 × 各公司之賠款合計（R-CALC-21）——<b>傳入全部理賠資料，不做任何篩選</b>。
+     *
+     * <p>供賠款彙總表之 {@code C} 欄使用。是 {@link #claimByUnderwritingYear} 再多切一層公司維度，
+     * 故恆有 {@code Σ M12[y] == M9[y]}，且 {@code M12[設定年]} 恆等於 M4。
+     *
+     * <p><b>本結果只餵 {@code C} 欄</b>：彙總表 {@code G} 欄（應攤配賠款）之分攤基準是該年度<b>合計</b>
+     * （{@code C23}）乘成分，與各公司自身金額無關。誤用時中央再保之差額法會吸收全部差異，
+     * {@code C23} / {@code G23} / {@code J23} 三個合計仍然正確，<b>只有逐家金額會歸零</b>（TASK K20）。
+     *
+     * @param records 全部理賠資料列（未經 {@link #filterByUnderwritingYear} 篩選）
+     * @return 外層依年度<b>降冪</b>；理賠檔缺檔時為空 Map（R-EXC-01）
+     */
+    public Map<Integer, Map<String, Long>> claimByYearAndCompany(List<ClaimRecord> records) {
+        Map<Integer, Map<String, Long>> byYear = new TreeMap<>(Comparator.reverseOrder());
+        for (ClaimRecord record : records) {
+            byYear.computeIfAbsent(record.underwritingYearValue(), year -> new LinkedHashMap<>())
+                    .merge(record.companyCode(), record.totalSettledClaimValue(), Long::sum);
+        }
+        return new LinkedHashMap<>(byYear);
+    }
 }

@@ -42,10 +42,48 @@ public final class TestFixtures {
     public static final long CLAIM_WITHOUT_YEAR_FILTER = 197_722L;
 
     // ── 第二階段基準值（..._LOG_第二階段問題追蹤清單.md §5.2 / MAPPING §10） ──
-    /** M9[113]，賠款 T 字帳之 G6 / G21 / O20 / O21。 */
+    /** M9[113]，賠款 T 字帳之 G6 / G21 / O20 / O21；亦為賠款彙總表之 C15 / C23。 */
     public static final long CLAIM_YEAR_113 = 32_460L;
     /** M9[114]，同上。 */
     public static final long CLAIM_YEAR_114 = 38_331L;
+
+    // ── 第四張報表基準值（..._LOG_第二階段問題追蹤清單.md §5.4.2 / MAPPING §11.4） ──
+    /** 樣本理賠全部集中於此公司代號，故彙總表僅第 15 列之 C 欄有值。 */
+    public static final String CLAIM_ONLY_COMPANY = "N05";
+
+    /**
+     * 賠款彙總表 G 欄（應攤配賠款）之逐家期望值，索引即樣板第 7 ~ 22 列。
+     *
+     * <p><b>只驗 C23 / G23 / J23 三個合計不足以擋下 TASK K20</b>：G 欄若誤用逐家 M12
+     * 而非年度合計，中央再保之差額法會吸收全部差異，三個合計仍然全對，只有本表會露餡。
+     */
+    public static final long[] CLAIM_SUMMARY_ALLOCATION_113 = {
+            2_435L, 2_435L, 2_435L, 2_435L, 2_435L, 2_435L, 2_435L, 2_435L,  // 壽險 8 家各 7.5%
+            1_948L,  // 富邦產險 6%
+            974L,    // 和泰產險 3%
+            649L,    // 泰安產險 2%
+            1_948L,  // 明台產險 6%
+            1_623L,  // 新光產險 5%
+            1_623L,  // 華南產險 5%
+            1_948L,  // 國泰產險 6%
+            2_267L   // 中央再保（差額法；7% 直算會得 2,272）
+    };
+
+    /** 同上，114 年份；中央再保差額法 2,680（7% 直算會得 2,683）。 */
+    public static final long[] CLAIM_SUMMARY_ALLOCATION_114 = {
+            2_875L, 2_875L, 2_875L, 2_875L, 2_875L, 2_875L, 2_875L, 2_875L,
+            2_300L, 1_150L, 767L, 2_300L, 1_917L, 1_917L, 2_300L, 2_680L
+    };
+
+    /** 中央再保以成分直算之<b>錯誤</b>值——反向斷言用（R-CALC-22 禁止事項）。 */
+    public static final long REINSURER_DIRECT_113 = 2_272L;
+    /** 同上，114 年份。 */
+    public static final long REINSURER_DIRECT_114 = 2_683L;
+
+    /** 富邦產險列之 J 欄（淨收付共保費）= D + H + I = −C + G。 */
+    public static final long CLAIM_SUMMARY_NET_113 = -30_512L;
+    /** 同上，114 年份。 */
+    public static final long CLAIM_SUMMARY_NET_114 = -36_031L;
 
     private static final Path SAMPLE_ROOT = Path.of("docs", "規格來源", "第一階段-共保月帳單", "檔案位子範例");
 

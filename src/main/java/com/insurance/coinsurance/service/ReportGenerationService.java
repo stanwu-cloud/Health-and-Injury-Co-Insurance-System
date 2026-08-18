@@ -6,6 +6,7 @@ import com.insurance.coinsurance.calculator.ManagementFeeCalculator;
 import com.insurance.coinsurance.calculator.PremiumCalculator;
 import com.insurance.coinsurance.config.AppConfig;
 import com.insurance.coinsurance.config.SettingReader;
+import com.insurance.coinsurance.constant.ClaimSummaryCell;
 import com.insurance.coinsurance.constant.ClaimTAccountCell;
 import com.insurance.coinsurance.constant.CoInsuranceConstants;
 import com.insurance.coinsurance.constant.SummaryCell;
@@ -27,6 +28,7 @@ import com.insurance.coinsurance.validator.ClaimValidator;
 import com.insurance.coinsurance.validator.PeriodValidator;
 import com.insurance.coinsurance.validator.PremiumValidator;
 import com.insurance.coinsurance.writer.BackupService;
+import com.insurance.coinsurance.writer.ClaimSummaryWriter;
 import com.insurance.coinsurance.writer.ClaimTAccountWriter;
 import com.insurance.coinsurance.writer.ReportJsonWriter;
 import com.insurance.coinsurance.writer.SummaryWriter;
@@ -71,6 +73,7 @@ public class ReportGenerationService {
     private final TAccountWriter tAccountWriter;
     private final SummaryWriter summaryWriter;
     private final ClaimTAccountWriter claimTAccountWriter;
+    private final ClaimSummaryWriter claimSummaryWriter;
     private final ReportJsonWriter reportJsonWriter;
 
     @SuppressWarnings("java:S107")
@@ -82,6 +85,7 @@ public class ReportGenerationService {
                                    ManagementFeeCalculator managementFeeCalculator, BackupService backupService,
                                    TAccountWriter tAccountWriter, SummaryWriter summaryWriter,
                                    ClaimTAccountWriter claimTAccountWriter,
+                                   ClaimSummaryWriter claimSummaryWriter,
                                    ReportJsonWriter reportJsonWriter) {
         this.appConfig = appConfig;
         this.settingReader = settingReader;
@@ -98,6 +102,7 @@ public class ReportGenerationService {
         this.tAccountWriter = tAccountWriter;
         this.summaryWriter = summaryWriter;
         this.claimTAccountWriter = claimTAccountWriter;
+        this.claimSummaryWriter = claimSummaryWriter;
         this.reportJsonWriter = reportJsonWriter;
     }
 
@@ -206,32 +211,40 @@ public class ReportGenerationService {
             outputNames.add(TAccountCell.OUTPUT_FILE_PATTERN.formatted(yearMonth));
             outputNames.add(SummaryCell.OUTPUT_FILE_PATTERN.formatted(yearMonth));
         }
-        calculation.reportYears().forEach(year -> outputNames.add(
-                ClaimTAccountCell.OUTPUT_FILE_PATTERN.formatted(yearMonth, String.valueOf(year))));
+        // 兩張賠款報表共用同一份 M10，故每個年度各有一份 T 字帳與一份彙總表（D23）
+        calculation.reportYears().forEach(year -> {
+            outputNames.add(ClaimTAccountCell.OUTPUT_FILE_PATTERN.formatted(yearMonth, String.valueOf(year)));
+            outputNames.add(ClaimSummaryCell.OUTPUT_FILE_PATTERN.formatted(yearMonth, String.valueOf(year)));
+        });
         backupService.backupExisting(outputDir, outputNames, yearMonth, report);
         backupService.purgeExpired(report);
 
-        // [8] 產出報表：前兩張同進退（保費檔缺檔時整組不產），賠款 T 字帳份數隨資料變動（0 ~ N 份）
+        // [8] 產出報表：前兩張同進退（保費檔缺檔時整組不產），
+        //     兩張賠款報表份數隨資料變動（各 0 ~ N 份，且份數恆相等）
         List<Path> outputs = new ArrayList<>();
         if (premiumFileExists) {
             outputs.add(tAccountWriter.write(setting, calculation, outputDir));
             outputs.add(summaryWriter.write(setting, calculation, outputDir));
         }
         outputs.addAll(claimTAccountWriter.writeAll(setting, calculation, outputDir));
+        outputs.addAll(claimSummaryWriter.writeAll(setting, calculation, outputDir));
         outputs.forEach(path -> report.getOutputFiles().add(new ExecutionReport.OutputFile(
                 path.getFileName().toString(), path.toAbsolutePath().toString())));
 
         String premiumReportMessage = describePremiumReports(premiumFileExists);
-        String claimTAccountMessage = describeClaimTAccount(calculation, Files.exists(claimPath));
+        String claimTAccountMessage = describeClaimReport(calculation, Files.exists(claimPath), "賠款月帳單");
+        String claimSummaryMessage = describeClaimReport(calculation, Files.exists(claimPath), "賠款彙總表");
         report.setPremiumReportMessage(premiumReportMessage);
         report.setClaimTAccountMessage(claimTAccountMessage);
+        report.setClaimSummaryMessage(claimSummaryMessage);
         report.setSummary(new ExecutionReport.Summary(calculation.totalPremium(), calculation.totalClaim(),
                 calculation.totalManagementFee(), calculation.balanceDue(),
                 calculation.claimByUnderwritingYear(), calculation.reportYears()));
 
         return ExecutionResult.success(
-                "%d 年 %s 月——%s；%s".formatted(
-                        setting.year(), setting.monthOfTwoDigits(), premiumReportMessage, claimTAccountMessage),
+                "%d 年 %s 月——%s；%s；%s".formatted(
+                        setting.year(), setting.monthOfTwoDigits(),
+                        premiumReportMessage, claimTAccountMessage, claimSummaryMessage),
                 outputs, calculation, report);
     }
 
@@ -248,24 +261,26 @@ public class ReportGenerationService {
     }
 
     /**
-     * 賠款 T 字帳之產出說明（R-OUT-09）。
+     * 兩張賠款報表之產出說明（R-OUT-09 / P-22）。
      *
      * <p>未產出時<b>須能區分原因</b>——承辦人員要能判斷是漏放理賠檔，還是本月真的沒有非當年度簽單資料。
+     *
+     * <p>兩張報表共用同一份 {@code M10}（D23），故份數與原因永遠相同，訊息只差報表名稱。
      */
-    private String describeClaimTAccount(CalculationResult calculation, boolean claimFileExists) {
+    private String describeClaimReport(CalculationResult calculation, boolean claimFileExists, String reportName) {
         if (!calculation.reportYears().isEmpty()) {
             String years = calculation.reportYears().stream()
                     .map(year -> year + " 年")
                     .collect(Collectors.joining("、"));
-            return "賠款月帳單 %d 張（簽單年度 %s）".formatted(calculation.reportYears().size(), years);
+            return "%s %d 張（簽單年度 %s）".formatted(reportName, calculation.reportYears().size(), years);
         }
         if (!claimFileExists) {
-            return "未產出賠款月帳單：理賠匯入檔不存在";
+            return "未產出%s：理賠匯入檔不存在".formatted(reportName);
         }
         // 保費檔缺檔時設定年不被排除（P-13），故「無非當年度簽單資料」僅在前兩張會產出時才是真正原因
         return calculation.claimByUnderwritingYear().isEmpty()
-                ? "未產出賠款月帳單：理賠匯入檔無任何資料列"
-                : "未產出賠款月帳單：無非當年度簽單資料";
+                ? "未產出%s：理賠匯入檔無任何資料列".formatted(reportName)
+                : "未產出%s：無非當年度簽單資料".formatted(reportName);
     }
 
     private CalculationResult calculate(Setting setting, List<PremiumRecord> premiums, List<ClaimRecord> claims,
@@ -293,9 +308,12 @@ public class ReportGenerationService {
         log.info("簽單年度分群 {}，應產出賠款月帳單之年度 {}（設定年{}排除）",
                 claimByUnderwritingYear, reportYears, premiumFileExists ? "已" : "未");
 
+        // 第四張報表：M12 為 M9 再多切一層公司維度，只餵彙總表之 C 欄（G 欄之分攤基準另有其人）
+        Map<Integer, Map<String, Long>> claimByYearAndCompany = claimCalculator.claimByYearAndCompany(claims);
+
         return new CalculationResult(totalPremium, premiumByCompany, totalClaim, claimByCompany,
                 allocatedPremium, allocatedClaim, managementFee, totalManagementFee, balanceDue,
-                claimByUnderwritingYear, reportYears);
+                claimByUnderwritingYear, reportYears, claimByYearAndCompany);
     }
 
     /**
@@ -336,8 +354,19 @@ public class ReportGenerationService {
                         .formatted(carriedByPhaseOne, carriedByClaimTAccounts),
                 claimYearSum, carriedByPhaseOne + carriedByClaimTAccounts);
 
-        log.info("跨報表一致性檢查通過（賠款承載：第一階段 {}、賠款 T 字帳 {}）",
-                carriedByPhaseOne, carriedByClaimTAccounts);
+        // 第四張報表：M12 是 M9 再多切一層公司維度，總額必相等；設定年那一群則恆等於 M4（R-CALC-21）
+        calculation.claimByYearAndCompany().forEach((year, byCompany) -> {
+            long companySum = byCompany.values().stream().mapToLong(Long::longValue).sum();
+            checkEqual("簽單年度 %d 之逐家賠款（Σ M12[%d] vs M9[%d]）".formatted(year, year, year),
+                    calculation.claimOfYear(year), companySum);
+        });
+        long configYearByCompanySum = setting.companies().stream()
+                .mapToLong(company -> calculation.claimOf(setting.year(), company.code())).sum();
+        checkEqual("設定年逐家賠款（M12[%d] vs M4）".formatted(setting.year()),
+                calculation.totalClaim(), configYearByCompanySum);
+
+        log.info("跨報表一致性檢查通過（賠款承載：第一階段 {}、兩張賠款報表各 {} 份共 {}）",
+                carriedByPhaseOne, calculation.reportYears().size(), carriedByClaimTAccounts);
     }
 
     private void checkEqual(String label, long expected, long actual) {
