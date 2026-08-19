@@ -143,10 +143,10 @@ public class MainController {
             for (Path path : result.outputFiles()) {
                 text.append("產出：").append(path.toAbsolutePath()).append(System.lineSeparator());
             }
-            var calculation = result.calculation();
-            text.append("共保保費 %,d｜攤付共保賠款 %,d｜共保管理費 %,d｜Balance Due %,d".formatted(
-                    calculation.totalPremium(), calculation.totalClaim(),
-                    calculation.totalManagementFee(), calculation.balanceDue()));
+//            var calculation = result.calculation();
+//            text.append("共保保費 %,d｜攤付共保賠款 %,d｜共保管理費 %,d｜Balance Due %,d".formatted(
+//                    calculation.totalPremium(), calculation.totalClaim(),
+//                    calculation.totalManagementFee(), calculation.balanceDue()));
             outputLabel.setText(text.toString());
         } else {
             outputLabel.setText("報表皆未產出；詳見 ./logs/report.json");
