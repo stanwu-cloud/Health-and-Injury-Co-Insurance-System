@@ -1,13 +1,7 @@
 package com.insurance.coinsurance.entry;
 
-import com.insurance.coinsurance.CoInsuranceApplication;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
-
 /**
- * fat jar 之主類別。
+ * fat jar 之主類別（**僅 {@code feature/gui} 分支**）。
  *
  * <p><b>刻意不繼承 {@code javafx.application.Application}</b>（DESIGN D8）：JavaFX 打包進
  * fat jar 時，主類別若直接繼承 {@code Application}，JavaFX 啟動器會因偵測不到模組路徑而
@@ -16,9 +10,12 @@ import org.springframework.context.ConfigurableApplicationContext;
  *
  * <p>執行模式：
  * <ul>
- *   <li>{@code java -jar xxx.jar --mode=cli [--year=115 --month=5]} → CLI 批次</li>
- *   <li>雙擊 jar 或 {@code java -jar xxx.jar} → GUI</li>
+ *   <li>{@code java -jar xxx.jar --mode=cli [--year=115 --month=5]} → 委派給 {@link CliLauncher}</li>
+ *   <li>雙擊 {@code 開啟畫面.bat} 或 {@code java -jar xxx.jar} → GUI</li>
  * </ul>
+ *
+ * <p>CLI 路徑<b>不自行實作</b>而是委派：{@code CliLauncher} 在三個分支逐字相同，容器建立方式
+ * 若在此複製一份，兩邊的 Spring 設定遲早會走鐘（TASK T-40 / K21）。
  */
 public final class FxLauncher {
 
@@ -29,9 +26,10 @@ public final class FxLauncher {
 
     public static void main(String[] args) {
         if (isCliMode(args)) {
-            System.exit(runCli(args));
+            CliLauncher.main(args);
+            return;
         }
-        FxApplication.launchWith(createContext(args), args);
+        FxApplication.launchWith(CliLauncher.createContext(args), args);
     }
 
     static boolean isCliMode(String[] args) {
@@ -41,19 +39,5 @@ public final class FxLauncher {
             }
         }
         return false;
-    }
-
-    private static int runCli(String[] args) {
-        try (ConfigurableApplicationContext context = createContext(args)) {
-            return context.getBean(CliRunner.class).run(args);
-        }
-    }
-
-    private static ConfigurableApplicationContext createContext(String[] args) {
-        SpringApplication application = new SpringApplicationBuilder(CoInsuranceApplication.class)
-                .web(WebApplicationType.NONE)
-                .bannerMode(org.springframework.boot.Banner.Mode.OFF)
-                .build();
-        return application.run(args);
     }
 }

@@ -15,8 +15,10 @@ import java.nio.file.Path;
  * <p>解析 {@code --year} / {@code --month}（<b>優先於設定檔</b>），觸發服務、輸出摘要與
  * 全部錯誤至主控台，並回傳 exit code（DESIGN §8.3）。
  *
- * <p>刻意<b>不</b>實作 {@code CommandLineRunner}：CLI 與 GUI 共用同一個 Spring 容器，
- * 若自動執行會導致 GUI 模式一啟動就跑批次。由 {@link FxLauncher} 明確呼叫。
+ * <p>刻意<b>不</b>實作 {@code CommandLineRunner}，由 {@link CliLauncher} 明確呼叫。
+ * 原因是 GUI 與 CLI 共用同一個 Spring 容器（{@code feature/gui}），自動執行會讓 GUI 一啟動
+ * 就跑批次。<b>即使在沒有 GUI 的分支也不要改回去</b>——批次的觸發時機由進入點決定，容器建立
+ * 本身不該有副作用，測試也才能單獨組裝容器而不觸發整批產出。
  */
 @Component
 public class CliRunner {

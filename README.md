@@ -12,13 +12,20 @@
 後兩種**共用同一份年度清單**，份數與年度永遠一致；樣本（115 年 5 月）一次執行共 **6 個檔**。
 
 - 執行環境：Windows + JDK 17
-- 提供 **GUI**（雙擊 `開啟畫面.bat`）與 **CLI 批次**（雙擊 `拜託執行我.bat`）兩種模式，共用同一核心服務層
+- 執行方式為 **CLI 批次**（雙擊 `拜託執行我.bat`）；**GUI（雙擊 `開啟畫面.bat`）自 2026-08-22 起只在 `feature/gui` 分支**，兩者共用同一核心服務層
 - 給使用者的操作說明另見專案根目錄之 `系統操作說明.docx`
 - 規格文件見 `docs/`；架構與規則以 `..._DESIGN_系統設計.md`、`..._RULE_規則定義.md` 為準
 
 > **⚠ 分支歸屬（2026-08-22）：GUI 只在 `feature/gui` 分支。**
-> `dev` 與 `feature/phase-two` 已移除 `FxLauncher` / `FxApplication` / `MainController`、`開啟畫面.bat` 與 `pom.xml` 之三個 JavaFX 依賴，只保留 CLI 批次進入點（`entry/CliLauncher`）。
-> 報表計算與產出邏輯三個分支**完全同源**；本分支日後只接收 `feature/phase-two` 之合併，**不得**在此修改 `calculator/` 或 `writer/`。
+> `dev` 與 `feature/phase-two` 不含 `FxLauncher` / `FxApplication` / `MainController`、`開啟畫面.bat`
+> 與 `pom.xml` 之三個 JavaFX 依賴；那兩個分支的 fat jar 主類別是 `entry/CliLauncher`，
+> `java -jar target\health-and-injury-co-insurance-system.jar` **直接進批次**
+> （`--mode=cli` 保留相容但已無作用，供既有 `.bat` 與排程沿用）。
+>
+> 報表計算與產出邏輯三個分支**完全同源**，`feature/gui` 只接收 `feature/phase-two` 的合併。
+> **共用檔案（`docs/`、本檔、`CLAUDE.md`、`entry/CliRunner`、`entry/CliLauncher`、
+> `CoInsuranceApplication`）在各分支必須逐字相同**——分支專屬敘述一旦寫進去，每次合併都會在同一處衝突。
+> 真正允許分歧的只有：`pom.xml`、`開啟畫面.bat` 與三個 `Fx*` / `MainController` 類別。
 
 > **第二階段（`feature/phase-two`）已全部實作完成並通過驗收**：P-01 ~ **P-23** 全數結案、T-23 ~ **T-38** 實作完畢、**63 項測試全綠**，**目前無待業務方確認之項目**。爭議與定案內容見 `docs/..._LOG_第二階段問題追蹤清單.md`；**找檔案請先看 `docs/..._GUIDE_文件與資料索引.md`**。
 
@@ -32,7 +39,7 @@
 build.bat
 ```
 
-產出 `target\health-and-injury-co-insurance-system.jar`（fat jar，含 JavaFX）。
+產出 `target\health-and-injury-co-insurance-system.jar`（fat jar）。`dev` / `feature/phase-two` **不含 JavaFX**，約 35 MB；`feature/gui` 含 JavaFX，約 44 MB。
 本機無 `mvn`，一律使用專案內的 `mvnw.cmd`。
 
 ### 2. 準備資料
@@ -53,51 +60,18 @@ input/{YYYMM}/VOLC{YYYMM}.csv  理賠匯入檔（可缺，缺檔時賠款以 0 �
 ### 3. 執行
 
 ```
-開啟畫面.bat                          開啟 GUI
 拜託執行我.bat                        編譯 + CLI 批次，年月取自設定檔
 拜託執行我.bat --year=115 --month=5   編譯 + CLI 批次，年月由參數覆寫（優先於設定檔）
 ```
 
 `拜託執行我.bat`（原 `run.bat`）已內含 `mvnw.cmd clean package -DskipTests`，
 雙擊即可完成「編譯 → 執行」；若只想編譯請用 `build.bat`。
-`開啟畫面.bat` 不編譯，直接開既有的 jar，請先確認 `target\` 下已有建置產物。
-（`開啟畫面.bat` 與 GUI 一樣**只在 `feature/gui` 分支**存在。）
+`開啟畫面.bat`（開 GUI，不編譯）**只在 `feature/gui` 分支**，連同「不要教使用者雙擊 jar」與 Java 自動探測順序的說明一起。
+批次執行不受影響：`拜託執行我.bat` 內含寫死的 `JAVA_EXE`（業務方機器路徑），不依賴 `.jar` 的檔案關聯。
 
 **GUI 執行成功的畫面只顯示兩件事**（R-RUN-05 / D24）：本次使用了哪些匯入檔、成功產出了哪些報表。
-金額摘要（共保保費／攤付共保賠款／共保管理費／Balance Due）**不上畫面**，改在主控台與 `logs/report.json` 查；
-畫面上的數字太容易被當成對帳依據。**執行中止的畫面則完全不簡化**——失敗要能一眼看出原因。
-保費檔缺檔時不另跳警語，而是在匯入檔那行看到「未提供：`VOLP11505.csv`」、產出清單裡沒有共保月帳單兩張。
-
-> **不要教使用者雙擊 jar。** 雙擊 `.jar` 能否啟動取決於該台電腦有沒有把 `.jar` 關聯到 Java：
-> MSI 安裝的 JDK 通常會建立關聯，但**以解壓縮方式安裝的 JDK（例如 IDE 下載到 `%USERPROFILE%\.jdks\` 的版本）不會**，解壓縮軟體（7-Zip / WinRAR）也常把 `.jar` 關聯搶走。
-> 業務方機器的 JDK 正是 `.jdks` 下的 Corretto 17，因此雙擊 jar 沒有反應，必須走 `開啟畫面.bat`。
-> 該檔自行探測 Java 並以絕對路徑啟動，繞過檔案關聯與 PATH；**刻意用 `java.exe` 而非 `javaw.exe`**，因為 `javaw` 沒有主控台，Java 版本不符之類的啟動失敗會被靜默丟棄，症狀同樣是「雙擊沒反應」，最難查。
-
-`開啟畫面.bat` 的 Java 探測順序（**只接受 17 以上**，取第一個符合者）：
-
-| 順序 | 來源 |
-| --- | --- |
-| 1 | 環境變數 `COINSURANCE_JAVA`（指向 `java.exe`，供例外機器覆寫，毋須改檔） |
-| 2 | 環境變數 `JAVA_HOME` |
-| 3 | `%USERPROFILE%\.jdks\` 及 `C:\Program Files\` 下 Amazon Corretto、Microsoft、Java、Eclipse Adoptium、Zulu、BellSoft 各版本子目錄 |
-| 4 | 系統 `PATH`（`where java`） |
-
-版本判定會排除 Java 8 以前（版本字串為 `1.8.0_xxx`，主版本 1）。全部落空時列出已尋找的位置並提示可設 `COINSURANCE_JAVA`，回傳 exit code 1。
-
-產出位於 `output/{YYYMM}/`：
-
-```
-共保保費_當月共保月帳單_T字帳報表{YYYMM}.xlsx
-共保保費_當月共保月帳單_彙整表{YYYMM}.xlsx
-共保理賠_當月賠款月帳單_T字帳報表{YYYMM}_{簽單年度}年.xlsx    ← 每個年度各一張
-共保理賠_當月賠款月帳單_彙總表{YYYMM}_{簽單年度}年.xlsx      ← 每個年度各一張
-```
-
-注意「彙**整**表」（第一階段）與「彙**總**表」（第二階段）**一字之差是刻意的**，別把兩者搞混。
-
-每次執行都會覆寫 `logs/report.json`（只留最後一次），內含匯入檔資訊、全部檢核錯誤、產出與備份清單、金額摘要。
-
----
+金額摘要（共保保費／攤付共保賠款／共保管理費／Balance Due）**不上畫面**，改在主控台與 `logs/report.json` 查；畫面上的數字太容易被當成對帳依據。
+**執行中止的畫面則完全不簡化**——失敗要能一眼看出原因。保費檔缺檔時不另跳警語，而是在匯入檔那行看到「未提供：`VOLP11505.csv`」、產出清單裡沒有共保月帳單兩張。
 
 ## 放了哪些匯入檔，就會出哪些報表
 
@@ -125,7 +99,7 @@ input/{YYYMM}/VOLC{YYYMM}.csv  理賠匯入檔（可缺，缺檔時賠款以 0 �
 
 **Q：保費檔忘了放會怎樣？會不會安靜地出一張全 0 的報表？**
 
-不會。共保月帳單那兩張**整組不產出**，主控台、GUI 與 `logs/report.json` 都會標示「保費匯入檔不存在」，並警示保費、管理費、Balance Due 均以 0 計算、非本月實際金額。`report.json` 中的 `premiumFileMissing` 會是 `true`。
+不會。共保月帳單那兩張**整組不產出**，主控台與 `logs/report.json` 都會標示「保費匯入檔不存在」，並警示保費、管理費、Balance Due 均以 0 計算、非本月實際金額。`report.json` 中的 `premiumFileMissing` 會是 `true`。
 
 **Q：「沒放保費檔」和「保費檔只有表頭沒有資料」一樣嗎？**
 
@@ -250,15 +224,14 @@ mvnw.cmd clean package            建置 fat jar（含測試）
 mvnw.cmd clean package -DskipTests
 ```
 
-三支 `.bat` 取得 Java 的方式不同：
+兩支 `.bat` 取得 Java 的方式不同：
 
 | 檔案 | 取得方式 | 換機器時 |
 | --- | --- | --- |
-| `開啟畫面.bat` | **自動探測**（見上方順序表） | 免調整；例外機器設 `COINSURANCE_JAVA` 即可 |
 | `build.bat` | 內建 `JAVA_HOME`＝`C:\Program Files\Amazon Corretto\jdk17.0.18_9`（開發機） | 需改檔 |
 | `拜託執行我.bat` | 內建 `JAVA_EXE`＝`C:\Users\user\.jdks\corretto-17.0.18\bin\java.exe`（**業務方機器**） | 需改檔；在開發機上會停在「找不到 Java」，屬預期行為 |
 
-`拜託執行我.bat` 仍是寫死路徑，尚未套用探測邏輯。
+`拜託執行我.bat` 是寫死路徑；自動探測邏輯在 `開啟畫面.bat`（僅 `feature/gui`）。
 兩支 `.bat` 皆以 `pushd "%~dp0"` 開頭、於**每個結束點** `popd`，因此自任何目錄呼叫都能正確解析 `config/` `input/` `output/` 等相對路徑，且不會污染呼叫端的當前目錄。
 `.bat` 一律為 **UTF-8 無 BOM + CRLF**（檔內以 `chcp 65001` 切碼頁）；存成 LF 或加上 BOM，cmd 會報出與實際無關的錯誤訊息。
 
