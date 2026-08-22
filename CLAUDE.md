@@ -16,6 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 第二階段一律在 `feature/phase-two` 開發，驗收後才合回 `dev`。
 
+- **GUI 已移出（2026-08-22，TASK T-40）**：`entry/FxLauncher`、`entry/FxApplication`、`entry/MainController`、`開啟畫面.bat` 與 `pom.xml` 之三個 JavaFX 依賴都在 **`feature/gui`**，本分支沒有。fat jar 主類別是 **`entry/CliLauncher`**，`java -jar` 直接進批次；`--mode=cli` **刻意保留相容**（業務方的 `.bat` 與排程都還帶著它），由 `CliRunner.parse` 忽略。報表邏輯兩分支同源——**`feature/gui` 只接收本分支的合併，不要在那邊改 `calculator/` 或 `writer/`**。文件不分家：十份常駐文件在文件資訊後各加一段「分支歸屬」提示，GUI 專屬條目（R-RUN-05、NF-06/07、T-18、TC-M-02/03、D8、K8、D-04/D-05）**保留不刪但標為本分支不適用**——刪掉的話日後回查業務回覆（B15 / B16 / N-09 / A-09）會對不上。
+
 ## 常用指令
 
 ```
@@ -31,12 +33,12 @@ mvnw.cmd clean package -DskipTests
 
 ## 程式架構
 
-分層：`entry`（CLI / JavaFX）→ `service`（`ReportGenerationService`，唯一對外入口）→ `config` / `reader` / `validator` / `calculator` / `writer`，共用 `model` / `constant` / `util` / `exception`。
+分層：`entry`（CLI；GUI 在 `feature/gui`）→ `service`（`ReportGenerationService`，唯一對外入口）→ `config` / `reader` / `validator` / `calculator` / `writer`，共用 `model` / `constant` / `util` / `exception`。
 
 改動計算或輸出邏輯前，務必先讀下方「領域地雷」——每一條都有對應的測試在把關（`StaticGuardTest` 甚至會掃描原始碼）。
 
-- **`FxLauncher` 是 fat jar 的主類別，刻意不繼承 `javafx.application.Application`**；直接繼承會讓 JavaFX 以「runtime components are missing」啟動失敗。
-- **`CliRunner` 刻意不是 `CommandLineRunner`**：CLI 與 GUI 共用同一個 Spring 容器，自動執行會讓 GUI 一開就跑批次。
+- **`CliLauncher` 是 fat jar 的主類別**（原為 `FxLauncher`，GUI 移出後改此）。`feature/gui` 那邊的 `FxLauncher` **刻意不繼承 `javafx.application.Application`**，直接繼承會讓 JavaFX 以「runtime components are missing」啟動失敗——改那個分支時別忘了。
+- **`CliRunner` 刻意不是 `CommandLineRunner`**：原因是 CLI 與 GUI 曾共用同一個 Spring 容器，自動執行會讓 GUI 一開就跑批次。**GUI 移出後仍不要改回去**——批次的觸發時機屬於進入點，容器建立本身不該有副作用，測試也才能單獨組裝容器而不觸發整批產出。
 - **`ReportGenerationService` 不得 `System.exit()` 或直接印訊息**，只回傳 `ExecutionResult`；中止行為由進入點決定。
 - **捨入只能經 `calculator/RoundingUtil`**（固定 HALF_UP）。
 - **`writer/SummarySheetPainter` 由第一階段彙整表與第四張報表共用**（公式字串單點存在）。改它等於同時改兩張報表；`SummaryWriter` / `ClaimSummaryWriter` 只負責表頭、資料來源與命名常數。
@@ -147,7 +149,7 @@ T 字帳寫入位置（規格書 v1.0 曾整體偏一列，已修正）：`I3` �
 
 ## 技術堆疊
 
-Java 17 + Spring Boot 3.5.0 + Apache POI 5.3.0 + JavaFX 21.0.5（`win` classifier），打包成 fat jar 可雙擊執行，同時提供 CLI 批次進入點；兩者共用同一核心服務層。
+Java 17 + Spring Boot 3.5.0 + Apache POI 5.3.0（**JavaFX 21.0.5 僅 `feature/gui`**），打包成 fat jar；**本分支只有 CLI 批次進入點**（JavaFX 與 GUI 在 `feature/gui`），兩分支共用同一核心服務層。
 
 分層架構沿用 `D:\project\retained-premium-report-transformer`（`config` / `model` / `reader` / `writer` / `service` / `constant` / `exception`）與 `build.bat` / `run.bat` 慣例（本專案之 `run.bat` 已更名為 `拜託執行我.bat` 並併入編譯）；`logs/report.json` 執行報告作法比照 `D:\project\excel-report-integration-engine`。
 
