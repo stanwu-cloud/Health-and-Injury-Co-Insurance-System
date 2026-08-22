@@ -14,11 +14,14 @@
 
 > **文件維護原則**：單一常駐文件，改版直接更新本檔，版本歷程見 §13。
 
-> **【分支歸屬｜2026-08-22】GUI（JavaFX）已自本分支移除，改由 `feature/gui` 單獨維護。**
-> 本分支只有 CLI 批次進入點（`entry/CliLauncher`），`pom.xml` 不含 JavaFX 依賴。
-> 本文件凡標示 **GUI** 之條目（技術選型、進入點、功能範圍、手動驗收）於本分支**不成立**，
-> 一律移至 `feature/gui`；條目本身保留不刪，以免日後回查業務回覆時對不上。
-> 報表計算與產出邏輯兩分支**完全同源**，仍以本文件為單一事實來源。
+> **【分支歸屬｜2026-08-22】GUI（JavaFX）只在 `feature/gui` 分支。**
+> `dev` 與 `feature/phase-two` 不含 `FxLauncher` / `FxApplication` / `MainController` 與 JavaFX 依賴，
+> fat jar 主類別為 `entry/CliLauncher`，`java -jar` 直接進批次。
+> 本文件凡標示「**僅 `feature/gui`**」之條目只在該分支成立；條目一律保留不刪，
+> 以免日後回查業務回覆時對不上。報表計算與產出邏輯三個分支**完全同源**。
+>
+> **本段與本文件全文在三個分支必須逐字相同**——分支專屬敘述（「本分支不適用」之類）
+> 一旦寫進共用文件，每次合併都會在同一處衝突；這正是 2026-08-22 首版的錯誤，已改為中立措辭。
 
 **依據**：`..._REQ_需求規格.md`（v1.0）、`..._RULE_規則定義.md`（v3.2）、`..._MAPPING_欄位對照.md`（v3.2）；架構參考 `D:\project\retained-premium-report-transformer` 與 `D:\project\excel-report-integration-engine`。
 
@@ -37,7 +40,7 @@
 | 語言 | Java 17 | 兩個參考專案一致 |
 | 應用框架 | Spring Boot 3.5.0 | `retained-premium-report-transformer` 同版 |
 | Excel 處理 | Apache POI 5.3.0（`poi` + `poi-ooxml`） | 兩個參考專案一致 |
-| ~~GUI~~ | ~~**JavaFX 21**（LTS，相容 Java 17）~~ **已移出至 `feature/gui`（2026-08-22）**；本分支之 `pom.xml` 無 JavaFX 依賴 | 業務回覆 A-09(v0.3)／使用者決策 2026-08-22 |
+| ~~GUI~~ | ~~**JavaFX 21**（LTS，相容 Java 17）~~ **僅 `feature/gui`（2026-08-22 分出）**；`dev` / `feature/phase-two` 之 `pom.xml` 無 JavaFX 依賴 | 業務回覆 A-09(v0.3)／使用者決策 2026-08-22 |
 | JSON | Jackson（Spring Boot 內建） | 產出 `report.json` |
 | 日誌 | Logback（`logback-spring.xml`） | 參考專案慣例 |
 | 建置 | Maven（`mvnw.cmd` wrapper） | 本機無 `mvn`，需 wrapper |
@@ -50,7 +53,7 @@
 | CLI 批次 | `java -jar xxx.jar --mode=cli [--year=115 --month=5]` 或 `拜託執行我.bat`（含編譯） | 承辦人員或排程 |
 | ~~GUI~~ | ~~雙擊 jar，或 `java -jar xxx.jar`（預設）~~ **已移出至 `feature/gui`** | 承辦人員 |
 
-本分支只有 CLI 一種模式：`java -jar xxx.jar` **直接進批次**，不再需要 `--mode=cli` 切換（該參數仍容許出現，供既有 `.bat` 與排程沿用）。
+`dev` / `feature/phase-two` 只有 CLI 一種模式：`java -jar xxx.jar` **直接進批次**，不再需要 `--mode=cli` 切換（該參數仍容許出現，供既有 `.bat` 與排程沿用）。
 GUI 仍在 `feature/gui` 分支，兩者**共用同一核心服務層**，差異僅在輸入取得與結果呈現。
 
 ---
@@ -196,7 +199,7 @@ com.insurance.coinsurance
 | D5 | 彙整表 A 欄**不覆寫**，改以樣板 A 欄名稱查設定檔 | 列順序以樣板為準（B04），且可偵測名稱不一致（R-EXC-06） |
 | D6 | 計算欄位寫入 **公式字串**而非數值 | 可稽核（NF-12）；中央再保列之 SUM 範圍依其實際列號動態產生 |
 | D7 | 檢核採「收集後判定」而非「遇錯即拋」 | 需一次列出全部錯誤（A-18-2） |
-| D8 | ~~fat jar 主類別 `FxLauncher` **不繼承** `javafx.application.Application`~~ **本分支已不適用（2026-08-22）**：主類別為 `entry/CliLauncher`，不涉及 JavaFX。原理由（JavaFX 打包進 fat jar 時，主類別若直接繼承 `Application` 會因缺少模組路徑而啟動失敗）**於 `feature/gui` 仍然成立**，該分支不得改寫其主類別 | 見左欄 |
+| D8 | ~~fat jar 主類別 `FxLauncher` **不繼承** `javafx.application.Application`~~ **僅 `feature/gui` 適用（2026-08-22 起）**：`dev` / `feature/phase-two` 之主類別為 `entry/CliLauncher`，不涉及 JavaFX。原理由（JavaFX 打包進 fat jar 時，主類別若直接繼承 `Application` 會因缺少模組路徑而啟動失敗）**於 `feature/gui` 仍然成立**，該分支不得改寫其主類別 | 見左欄 |
 | D9 | 全部進入點共用 `ReportGenerationService`，該服務**不得** `System.exit()` 或直接印訊息 | 中止行為由進入點決定，服務層只回傳 `ExecutionResult`。**GUI 移出後這條更重要**——兩個分支的進入點各自決定呈現方式（CLI 帶金額摘要、GUI 只列檔名），服務層一旦印訊息或 `exit`，兩邊就會互相牽制 |
 | **D10** | **賠款 T 字帳另立 `ClaimTAccountCell`，不重用 `TAccountCell`** | 兩者 `G20` / `G21` / `O20` 語意相反或不存在（P-03 / P-04）。若以參數化方式共用一組常數，將把「哪一格放 Balance Due」變成執行期分支，錯了不會編譯失敗、只會輸出到錯的格子 |
 | **D11** | **`ClaimTAccountWriter.writeAll()` 逐年度獨立載入樣板** | POI 之 `Workbook` 帶有狀態；重複使用同一實例寫多檔會殘留前一年度的值與樣式。每份重新 `WorkbookFactory.create(template)` 成本極低（樣板 12 KB） |
@@ -211,6 +214,7 @@ com.insurance.coinsurance
 | **D20** | **賠款彙總表另立 `ClaimSummaryCell`，但寫入邏輯**重用** `SummaryWriter`** | 與 D10 看似矛盾，實則相反的情況：`ClaimTAccountCell` 之所以必須獨立，是因為**同一格語意不同**（`G20` / `G21` 相反）；賠款彙總表的**每一格語意都與彙整表相同**，只有「餵什麼值」不同。常數獨立是為了檔名／工作表名／年度來源這四項不可共用；公式與版面則沒有任何差異，複製一份反而製造兩處要同步維護的公式字串 |
 | **D21** | **`B` 欄餵 0，而非為本報表另寫一套「不含保費」的公式** | 第一階段之 `F` / `I` 與中央再保差額法三組公式皆以 `$B$23` 為輸入，`B` 欄全 0 時它們**自動全為 0**。另寫一套公式等於把「保費恆為 0」這個業務事實硬編進公式字串，日後若業務方改口要帶入保費，改一個資料來源即可 vs 改兩套公式 |
 | **D22** | **`J23 == 0` 作為執行期不變式（`verifyConsistency()`）** | 本報表 `B` / `F` / `I` 三欄恆 0，帳面上很難看出算錯：`C` 欄年度取錯、`G` 欄分攤基準取錯、中央再保未用差額法——三種錯誤都會讓 `J23` 偏離 0，但單看報表都「有數字、格式正確」。這是本報表唯一的天然自檢，比照 D19 放進正式執行路徑 |
+| **D24**（僅 `feature/gui`） | **GUI 之成功畫面只顯示「用了哪些匯入檔」與「產出了哪些報表」；中止畫面維持原樣** | 兩個進入點的讀者不同：CLI 由承辦人員或排程取用，輸出會進主控台與日誌，適合帶金額摘要；GUI 是操作當下的即時回饋，畫面上的金額極易被當成對帳依據而略過 `report.json`。**中止時反而不能簡化**——失敗要能一眼看出原因，故失敗分支一字不動。保費檔缺檔（P-12）不另立警語，靠「未提供：`VOLP{YYYMM}.csv`」與產出清單裡沒有共保月帳單，事實已完整呈現 |
 | **D23** | **兩張賠款報表共用同一份 `M10`，不各自計算** | 份數與年度必須一致（D11 之 BR-24）。若各自呼叫 `reportYears()`，一旦其中一處漏傳 `premiumFileExists`，就會出現「T 字帳 3 份、彙總表 2 份」這種只在特定輸入下才浮現的分歧 |
 
 
@@ -316,7 +320,7 @@ writeAll(setting, calculation, outputDir):
 3. 產出階段順序：`TAccountWriter` → `SummaryWriter` → `ClaimTAccountWriter.writeAll()` → **`ClaimSummaryWriter.writeAll()`**；四組 `Path` 併入 `ExecutionResult.outputFiles()`。
 4. `ExecutionReport` 追加 **`claimSummaryMessage`**（F13），與 `premiumReportMessage` / `claimTAccountMessage` 並列，使**四張報表**的產出結果各自可讀。
 5. 「全部落空」之判定改為**四張**：`!premiumFileExists && reportYears.isEmpty()` —— 條件式本身不變（兩張賠款報表共用 `M10`，一起有或一起沒有），但訊息文字需更新。
-6. 進入點之完成訊息追加彙總表份數（本分支只有 CLI；`feature/gui` 另有 GUI 之簡化訊息，見該分支 D24）。
+6. 進入點之完成訊息追加彙總表份數：**CLI 逐張列出說明與金額摘要**；**GUI 只列匯入檔與產出檔清單**（D24，僅 `feature/gui`）。
 
 ---
 
@@ -647,8 +651,8 @@ app:
 | D-01 | 【推論】`config/application.yml` 之技術性設定項目（路徑、備份保留月數、遮蔽開關）為設計提案，未經業務方確認 | 低 |
 | D-02 | 【推論】exit code 定義（0/1/2/3）為設計提案 | 低 |
 | D-03 | 【推論】姓名與出生日期之遮蔽格式（業務僅明確指定身分證號 `A12****789`） | 低 |
-| ~~D-04~~ | ~~【推論】JavaFX 版本選 21 LTS；若部署環境限制需調整~~ **本分支已不適用**（GUI 移出，2026-08-22）；於 `feature/gui` 仍為低度待確認 | ~~低~~ **不適用** |
-| ~~D-05~~ | ~~GUI 畫面之具體版面（欄位配置、按鈕文字）尚未定稿，僅定義功能範圍~~ **本分支已不適用**；於 `feature/gui` 仍為中度待確認 | ~~中~~ **不適用** |
+| ~~D-04~~ | ~~【推論】JavaFX 版本選 21 LTS；若部署環境限制需調整~~ **僅 `feature/gui` 適用**（2026-08-22 GUI 分支化） | 低（僅 `feature/gui`） |
+| ~~D-05~~ | ~~GUI 畫面之具體版面（欄位配置、按鈕文字）尚未定稿，僅定義功能範圍~~ **僅 `feature/gui` 適用**（2026-08-22 GUI 分支化） | 中（僅 `feature/gui`） |
 | **D-06** | 【推論】`ClaimYearSummary` 為設計提案；若實作時發現 `Map<Integer,Long>` + `List<Integer>` 已足夠，可不建立此 record | 低 |
 | **D-07** | **兩張賠款報表**之年度組合逐月可能不同，前次多出之年度檔會留在 `./output/{YYYMM}/`（兩張都會）。是否需在重跑時清空該月目錄，**待業務方確認**（同 REQ §11） | 低 |
 | **D-08** | ~~第四張報表「賠款彙總表」尚未設計~~ **✔ 已解除（2026-08-18）**：P-14 ~ P-23 全數結案，設計見 **§4.3**（`ClaimSummaryCell` / `ClaimSummaryWriter` / `M12`）與 D20 ~ D23 | ~~高~~ **已結案** |
@@ -661,7 +665,7 @@ app:
 
 | 版本 | 日期 | 內容 |
 | --- | --- | --- |
-| **v1.9** | **2026-08-22** | **GUI 分支化（本分支移除 GUI）**：GUI（JavaFX）自 2026-08-22 起只在 `feature/gui` 維護。本分支移除 `FxLauncher` / `FxApplication` / `MainController`、`開啟畫面.bat` 與 `pom.xml` 之三個 JavaFX 依賴，主類別改為 `entry/CliLauncher`；於文件資訊後加註分支歸屬。**業務決策與報表邏輯一字未改**，變更的只是 GUI 的實作歸屬。 本文件異動：§2.2 技術選型、§2.3 執行模式、§3.1 分層架構圖、§3.2 套件結構、§4 模組職責之 entry 列、**D8 標為本分支不適用**、D9 理由補述、§5.1 主流程之進入點、§8.1 進入點行為、§11 手動驗收範圍、§12 之 D-04 / D-05 標為不適用。 |
+| **v1.9** | **2026-08-22** | **GUI 分支化**：GUI（JavaFX）自 2026-08-22 起只在 `feature/gui` 維護——`dev` 與 `feature/phase-two` 不含 `FxLauncher` / `FxApplication` / `MainController`、`開啟畫面.bat` 與三個 JavaFX 依賴，主類別為 `entry/CliLauncher`。文件資訊後加註分支歸屬，GUI 條目改標「僅 `feature/gui`」。**業務決策與報表邏輯一字未改**，變更的只是 GUI 的實作歸屬；**措辭刻意寫成分支中立，使本文件在三個分支逐字相同，合併時不產生衝突**。 本文件異動：新增設計決策 **D24**（GUI 成功畫面只列匯入檔與產出報表，中止畫面不簡化）；§2.2 技術選型、§2.3 執行模式、§3.1 分層架構圖、§3.2 套件結構、§4 模組職責之 entry 列、**D8 標為僅 `feature/gui`**、D9 理由補述、§5.1 主流程之進入點、§8.1 進入點行為、§11 手動驗收範圍、§12 之 D-04 / D-05 標為僅 `feature/gui`。 **【2026-08-22 同日修訂】** 分支專屬措辭（「本分支不適用」）改為分支中立（「僅 `feature/gui`」），使本文件在三個分支逐字相同——首版寫法會讓 `feature/gui` 與 `feature/phase-two` 每次合併都在 12 份共用文件上衝突。 |
 | **v1.8** | **2026-08-18** | 配合**規格來源目錄歸納**與**產出範例取代**同步：① 全文之規格來源路徑引用改指向歸納後之新位置（第一階段新增 `規格書/`、`匯入檔範例/`；第二階段新增 `規格書/`、`範本/`、`業務回覆/`）；② 「產出範例不可作驗收基準」之敘述改寫——**範例已於 2026-08-18 以實跑輸出取代**（R-06 / T-22 / T-29 / T-38），金額現已正確，**但仍不得以範例反推基準**（範例是產物、不是事實來源）。 §11 測試策略之禁止事項改寫為「範例是產物而非事實來源」之理由說明 |
 | **v1.7** | **2026-08-18** | **M10（設計部分）完成——納入第二階段·第四張報表（賠款彙總表）之設計**（P-14 ~ P-23 已結案，**D-08 解除**）。新增 **§4.3 第四張報表新增元件**：`ClaimSummaryCell` / `ClaimCalculator.claimByYearAndCompany()`（M12）/ `CalculationResult` 擴充 / `ClaimSummaryWriter`，含 `writeAll()` 處理輪廓、**公式重用之兩方案取捨（建議方案 A：抽出 `SummarySheetPainter`）**、服務層 6 點調整。新增關鍵設計決策 **D20 ~ D23**：常數獨立但寫入邏輯重用（與 D10 之對比理由）、**`B` 欄餵 0 而非另寫公式**、**`J23 == 0` 作為執行期不變式**、兩張賠款報表共用同一份 `M10`。§3.2 套件結構新增 `ClaimSummaryCell` / `ClaimSummaryWriter` / `SummarySheetPainter`；§4 模組職責擴充至 R-CALC-01~24、R-OUT-01~10；§5.1 主流程圖新增 M12、彙總表寫出與 `J23` 自驗；**§5.2 相依圖擴充並新增「禁止（二）」**——`G` 欄分攤基準是年度合計而非逐家 `M12`，**誤用時 15 家歸零但 `J23` 仍為 0**，須由逐家金額斷言把關；§6.1 / §6.3 新增 `M12` 與 `ClaimSummaryCell` 常數對照；§8.1 之「三張」改為「四張」並補列 `J23 ≠ 0`；§10 新增擴充點 **X9**（版面相同但資料來源不同）；§11 測試策略補列四項第四張報表之反向測試；§12 **D-08 結案**，新增 **D-09**（公式重用方案）與 **D-10**（`J23` 驗證手法） |
 | **v1.6** | **2026-08-17** | **登錄第二階段·第四張報表（賠款彙總表）之待確認狀態，未新增任何設計**：§12 新增 **D-08**（等級**高**、阻斷實作），載明屆時預期新增 `ClaimSummaryCell`（**不得共用 `SummaryCell`**）與 `ClaimSummaryWriter`，並可沿用 `M10`、成分查表、中央再保差額法與擴充點 X8。詳見 `..._LOG_第二階段問題追蹤清單.md` §4（P-14 ~ P-23） |

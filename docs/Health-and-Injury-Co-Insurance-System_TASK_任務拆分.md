@@ -14,11 +14,14 @@
 
 > **文件維護原則**：單一常駐文件，改版直接更新本檔，版本歷程見 §8。
 
-> **【分支歸屬｜2026-08-22】GUI（JavaFX）已自本分支移除，改由 `feature/gui` 單獨維護。**
-> 本分支只有 CLI 批次進入點（`entry/CliLauncher`），`pom.xml` 不含 JavaFX 依賴。
-> 本文件凡標示 **GUI** 之條目（技術選型、進入點、功能範圍、手動驗收）於本分支**不成立**，
-> 一律移至 `feature/gui`；條目本身保留不刪，以免日後回查業務回覆時對不上。
-> 報表計算與產出邏輯兩分支**完全同源**，仍以本文件為單一事實來源。
+> **【分支歸屬｜2026-08-22】GUI（JavaFX）只在 `feature/gui` 分支。**
+> `dev` 與 `feature/phase-two` 不含 `FxLauncher` / `FxApplication` / `MainController` 與 JavaFX 依賴，
+> fat jar 主類別為 `entry/CliLauncher`，`java -jar` 直接進批次。
+> 本文件凡標示「**僅 `feature/gui`**」之條目只在該分支成立；條目一律保留不刪，
+> 以免日後回查業務回覆時對不上。報表計算與產出邏輯三個分支**完全同源**。
+>
+> **本段與本文件全文在三個分支必須逐字相同**——分支專屬敘述（「本分支不適用」之類）
+> 一旦寫進共用文件，每次合併都會在同一處衝突；這正是 2026-08-22 首版的錯誤，已改為中立措辭。
 
 **依據**：`..._REQ_需求規格.md`（v1.0）、`..._DESIGN_系統設計.md`（v1.0）、`..._RULE_規則定義.md`（v3.2）。
 
@@ -44,7 +47,7 @@
 | 階段六 測試與交付 | T-19 ~ T-22 | 整合測試、打包、文件、範例更新 |
 | **階段七 第二階段：賠款 T 字帳** | **T-23 ~ T-31** | 常數與模型、分年計算、多份輸出、服務層編排、進入點訊息、測試、範例更新；T-30 / T-31 為保費檔缺檔之部分產出與條件式排除 |
 | **階段八 第二階段：賠款彙總表** | **T-32 ~ T-38** | 彙總表常數與 M12 模型、二維分群、**抽出 `SummarySheetPainter` 共用公式（純重構）**、`ClaimSummaryWriter`、服務層編排與備份擴充、測試、範例補件。依據 `..._LOG_第二階段問題追蹤清單.md` §5.4（P-14 ~ P-23 已結案） |
-| **階段九 GUI 分支化** | **T-40** | **GUI 移出至 `feature/gui`；本分支只留 CLI 進入點** |
+| **階段九 GUI 分支化** | **T-39 ~ T-40** | **GUI 成功訊息簡化、GUI 移出至 `feature/gui`** |
 
 ---
 
@@ -56,11 +59,11 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 描述 | 建立 Maven 專案（Spring Boot 3.5.0、Java 17、POI 5.3.0；**JavaFX 21 已於 2026-08-22 自本分支移除，見 T-40**），設定 `mvnw.cmd`、`logback-spring.xml`、`build.bat` / `拜託執行我.bat`（原 `run.bat`）、`.gitignore`（已存在），建立 DESIGN §3.3 之執行目錄結構 |
+| 描述 | 建立 Maven 專案（Spring Boot 3.5.0、Java 17、POI 5.3.0；**JavaFX 21 自 2026-08-22 起僅 `feature/gui`，見 T-40**），設定 `mvnw.cmd`、`logback-spring.xml`、`build.bat` / `拜託執行我.bat`（原 `run.bat`）、`.gitignore`（已存在），建立 DESIGN §3.3 之執行目錄結構 |
 | 前置依賴 | 無 |
 | 預期輸出 | `pom.xml`、`mvnw.cmd`、專案套件骨架、`config/application.yml`、`build.bat`、`拜託執行我.bat` |
 | 驗收條件 | `mvnw.cmd clean package -DskipTests` 成功；`java -jar target/*.jar --help` 可執行 |
-| 風險 | ~~JavaFX 依賴於 fat jar 之打包方式（見 T-18 之 D8）~~ **本分支已無此風險**（JavaFX 移出） |
+| 風險 | JavaFX 依賴於 fat jar 之打包方式（見 T-18 之 D8）——**僅 `feature/gui` 適用**，其餘分支無 JavaFX |
 | 優先級 | **P0** |
 
 #### T-02 常數與資料模型
@@ -255,9 +258,9 @@
 | 風險 | 參數名稱為【推論】，需與使用者確認 |
 | 優先級 | **P2** |
 
-#### T-18 JavaFX GUI（**本分支不適用——已移至 `feature/gui`**）
+#### T-18 JavaFX GUI（**僅 `feature/gui` 分支**）
 
-> 2026-08-22 起 GUI 只在 `feature/gui` 維護（見 T-40）。本任務保留供追溯，本分支之 `entry/` 只有 `CliLauncher` 與 `CliRunner`。
+> 2026-08-22 起 GUI 只在 `feature/gui` 維護（見 T-40）；`dev` / `feature/phase-two` 之 `entry/` 只有 `CliLauncher` 與 `CliRunner`。
 
 | 項目 | 內容 |
 | --- | --- |
@@ -302,7 +305,7 @@
 | 前置依賴 | T-17、T-18 |
 | 預期輸出 | `target/*.jar`、`README.md`、`build.bat` / `拜託執行我.bat`、`系統操作說明.docx` |
 | 驗收條件 | 目標機器（JDK 17）`java -jar` 直接完成批次且 exit code 0；`拜託執行我.bat` 可完成編譯與批次執行 |
-| 風險 | ~~JavaFX 原生依賴之平台相依性~~ **本分支已無此風險**；改為留意 fat jar 由 44 MB 降至約 35 MB 屬預期（JavaFX 移出所致），非打包缺件 |
+| 風險 | JavaFX 原生依賴之平台相依性——**僅 `feature/gui` 適用**；其餘分支改為留意 fat jar 由 44 MB 降至約 35 MB 屬預期（JavaFX 移出所致），非打包缺件 |
 | 優先級 | **P2** |
 
 #### T-22 更新產出範例（收尾）
@@ -510,15 +513,26 @@
 
 ### 階段九：GUI 分支化
 
-#### T-40 GUI 分支化（本分支：移除）
+#### T-39 GUI 成功訊息簡化（**僅 `feature/gui`**）
 
 | 項目 | 內容 |
 | --- | --- |
-| 描述 | 將 GUI 相關程式與設定集中至 `feature/gui`。本分支移除 `entry/FxLauncher`、`entry/FxApplication`、`entry/MainController` 與 `開啟畫面.bat`；`pom.xml` 移除三個 JavaFX 依賴與 `javafx.version` / `javafx.platform` 屬性；新增 `entry/CliLauncher` 作為 fat jar 主類別。`--mode=cli` **保留相容**（既有 `.bat` 與排程仍帶著它），由 `CliRunner.parse` 忽略 |
-| 前置依賴 | T-18、T-21 |
+| 描述 | 依 R-RUN-05 改寫 `MainController.showResult()`：成功時狀態列只顯示「執行成功」，內容區只列**本次使用之匯入檔**（取自 `ExecutionReport.getInputFiles()`，依 `exists` 分為「匯入檔」與「未提供」兩組）與**成功產出之報表清單**（份數 + 輸出目錄 + 逐檔檔名）；**失敗分支一字不動**。同時移除原先被註解掉的金額摘要殘碼 |
+| 前置依賴 | T-18、T-36 |
+| 預期輸出 | `entry/MainController` 修改（新增 `describeSuccess()` / `fileNames()` 兩個 `private static` 方法） |
+| 驗收條件 | 成功執行後畫面不出現任何金額；6 份報表逐檔列名；保費檔缺檔時「未提供」列出 `VOLP{YYYMM}.csv` 且產出清單無共保月帳單兩張；**檢核失敗與前置錯誤之畫面與改動前完全相同** |
+| 風險 | 過度簡化會讓保費檔缺檔之警示消失——以「未提供」一列補回（D24） |
+| 優先級 | **P2** |
+
+#### T-40 GUI 分支化
+
+| 項目 | 內容 |
+| --- | --- |
+| 描述 | 將 GUI 相關程式與設定集中至 `feature/gui`。`dev` / `feature/phase-two` 移除 `entry/FxLauncher`、`entry/FxApplication`、`entry/MainController` 與 `開啟畫面.bat`；`pom.xml` 移除三個 JavaFX 依賴與 `javafx.version` / `javafx.platform` 屬性；新增 `entry/CliLauncher` 作為 fat jar 主類別。`--mode=cli` **保留相容**（既有 `.bat` 與排程仍帶著它），由 `CliRunner.parse` 忽略 |
+| 前置依賴 | T-18、T-21、T-39 |
 | 預期輸出 | `entry/CliLauncher`（新增）、`pom.xml` / `CliRunner` / `CoInsuranceApplication` 修改、三個 GUI 類別與 `開啟畫面.bat` 刪除、十份常駐文件與 `README.md` / `CLAUDE.md` 加註分支歸屬 |
 | 驗收條件 | `pom.xml` 除註解外無 `javafx` 字樣；`mvnw.cmd -o test` 63 項全綠；`java -jar target/*.jar` **直接進 CLI** 並產出 6 檔、exit code 0、金額 350,123 / 126,931 / 21,009 / 202,183 不變 |
-| 風險 | 報表邏輯必須與 `feature/gui` 保持同源——GUI 分支只接收本分支之合併，**不得**在該分支修改 `calculator/` 或 `writer/`，否則兩邊各自演化後合併必然衝突 |
+| 風險 | 報表邏輯必須與 `feature/gui` 保持同源——GUI 分支只接收 `feature/phase-two` 之合併，**不得**在該分支修改 `calculator/` 或 `writer/`，否則兩邊各自演化後合併必然衝突 |
 | 優先級 | **P2** |
 
 ---
@@ -623,8 +637,8 @@ T-26 服務層編排 / T-30 缺檔部分產出 ──────────┤
 | K5 | 中央再保依列號而非代號判定 | T-09、T-12 | 測試：將 N19 移至任意列，結果不變 |
 | K6 | 沿用規格書 v1.0 之偏移儲存格 | T-11 | 以 G20/G21/O21 斷言 |
 | K7 | 以產出範例檔金額作驗收基準 | T-19、T-20 | 測試僅引用文件基準值；程式碼審查把關 |
-| ~~K8~~ | ~~JavaFX fat jar 啟動失敗~~ **本分支已不適用**（T-40 移出 JavaFX）；於 `feature/gui` 仍然有效 | ~~T-18、T-21~~ | Launcher 間接啟動；早期即做打包驗證 |
-| **K21** | **兩分支之報表邏輯各自演化** | T-40 | `feature/gui` 只接收本分支之合併；該分支不得改 `calculator/` 或 `writer/` |
+| K8 | JavaFX fat jar 啟動失敗（**僅 `feature/gui`**；T-40 之後其餘分支無 JavaFX） | T-18、T-21、T-40 | Launcher 間接啟動；早期即做打包驗證 |
+| **K21** | **兩分支之報表邏輯各自演化** | T-40 | `feature/gui` 只接收 `feature/phase-two` 之合併；該分支不得改 `calculator/` 或 `writer/`。**共用檔案（docs/、README、CLAUDE.md、`CliRunner`、`CliLauncher`、`CoInsuranceApplication`）必須逐字相同** |
 | K9 | Big5 解碼誤用 UTF-8 | T-04 | 編碼設為常數 + 中文欄位斷言 |
 | K10 | POI CellStyle 數量超限 | T-13 | 共用樣式物件 |
 | **K11** | **以第一階段 M8 算式驗證賠款 T 字帳之 Balance Due** | T-25、T-28 | 反向測試：套 M8 得 **−38,331**，與 G21 之 +38,331 不符即失敗 |
@@ -663,7 +677,7 @@ T-26 服務層編排 / T-30 缺檔部分產出 ──────────┤
 | T-15 執行報告 | ✔ | `ReportJsonWriter` + `MaskUtil`；檢核失敗仍產出 |
 | T-16 服務編排 | ✔ | `ReportGenerationService`，含 R-CALC-16 三組一致性檢查；不 `System.exit()`、不直接印訊息 |
 | T-17 CLI | ✔ | `CliRunner`，`--year` / `--month` / `--mode=cli`，exit code 0/1/2/3 |
-| T-18 GUI | ✔ →**已移出**（2026-08-22） | `FxLauncher` + `FxApplication` + `MainController` 移至 `feature/gui`；本分支 `entry/` 只剩 `CliLauncher` + `CliRunner` |
+| T-18 GUI | ✔ →**已移出**（2026-08-22） | `FxLauncher` + `FxApplication` + `MainController` 移至 `feature/gui`；`dev` / `feature/phase-two` 之 `entry/` 只剩 `CliLauncher` + `CliRunner` |
 | T-19 單元測試 | ✔ | 見下方測試彙總 |
 | T-20 整合與反向測試 | ✔ | 端到端測試以 POI `XSSFFormulaEvaluator` 實際求值產出檔公式後比對 |
 | T-21 打包與部署驗證 | ✔ | fat jar ~~44 MB~~ → **約 35 MB**（JavaFX 移出後，2026-08-22 實測）；CLI 實測可執行；`README.md` 已撰寫 |
@@ -695,6 +709,7 @@ T-26 服務層編排 / T-30 缺檔部分產出 ──────────┤
 | T-35 賠款彙總表寫入器 | ✔ | `ClaimSummaryWriter.writeAll()`；`A3` 取簽單年度、`B` 欄餵 0（**公式層一字未改**）、逐份獨立載入樣板、樣板檢查延後、寫出前以 `FormulaEvaluator` 自驗 `J23 == 0` |
 | T-36 服務層編排與備份擴充 | ✔ | 備份與寫出清單改為 **2 + N×2**；`verifyConsistency()` 追加 `Σ M12[y] == M9[y]` 與 `M12[設定年] == M4`；`ExecutionReport` 追加 `claimSummaryMessage`（F13）；CLI 訊息含彙總表份數 |
 | T-37 第四張報表測試 | ✔ | 新增 TC-U-20、TC-E2E-12 ~ 14、TC-N-31 / 32 / 35 與 `StaticGuardTest` 兩項掃描；既有份數斷言 4 / 3 / 1 → 6 / 6 / 2。**測試 56 → 63 項**全綠（實際少於預估之 65，因數個案例合併於同一測試方法以追加斷言涵蓋） |
+| **T-39 GUI 成功訊息簡化** | ✔（**2026-08-22**，僅 `feature/gui`） | `MainController.describeSuccess()`；成功畫面只剩匯入檔與產出清單兩項，失敗分支未改動 |
 | **T-40 GUI 分支化** | ✔（**2026-08-22**） | 移除三個 `entry` 類別、`開啟畫面.bat` 與 JavaFX 依賴；新增 `entry/CliLauncher`。實測：63 項測試全綠、fat jar 直接進 CLI 產出 6 檔、exit code 0、金額 350,123 / 126,931 / 21,009 / 202,183 未變 |
 | T-38 補入第四張報表範例 | ✔（**2026-08-18 執行**） | 依 P-23 之同意，與 T-22 / T-29 一併執行。新增 `當月賠款月帳單-彙總表113範例.xlsx` / `114範例.xlsx`（原本缺件）；複驗 `A3` = `Ｕ/Y：2024`/`2025`、`C15` = 32,460 / 38,331。**PM 隨附之 `共保保費_..._彙整表11505_115年.xlsx` 保留不動**（非本程式產出，作歷史參考，P-20） |
 
@@ -725,7 +740,7 @@ T-26 服務層編排 / T-30 缺檔部分產出 ──────────┤
 
 | 版本 | 日期 | 內容 |
 | --- | --- | --- |
-| **v2.2** | **2026-08-22** | **GUI 分支化（本分支移除 GUI）**：GUI（JavaFX）自 2026-08-22 起只在 `feature/gui` 維護。本分支移除 `FxLauncher` / `FxApplication` / `MainController`、`開啟畫面.bat` 與 `pom.xml` 之三個 JavaFX 依賴，主類別改為 `entry/CliLauncher`；於文件資訊後加註分支歸屬。**業務決策與報表邏輯一字未改**，變更的只是 GUI 的實作歸屬。 本文件異動：新增**階段九 T-40**（GUI 分支化）與風險 **K21**；**T-18 標為本分支不適用**、K8 標為不適用；T-01 / T-21 之描述、風險與驗收條件改寫；§7 進度表補 T-40 並更新 T-01 / T-18 / T-21；§7 之「與 DESIGN 之刻意差異」補述 GUI 移出後之理由。 |
+| **v2.2** | **2026-08-22** | **GUI 分支化**：GUI（JavaFX）自 2026-08-22 起只在 `feature/gui` 維護——`dev` 與 `feature/phase-two` 不含 `FxLauncher` / `FxApplication` / `MainController`、`開啟畫面.bat` 與三個 JavaFX 依賴，主類別為 `entry/CliLauncher`。文件資訊後加註分支歸屬，GUI 條目改標「僅 `feature/gui`」。**業務決策與報表邏輯一字未改**，變更的只是 GUI 的實作歸屬；**措辭刻意寫成分支中立，使本文件在三個分支逐字相同，合併時不產生衝突**。 本文件異動：新增**階段九 T-39 / T-40**（GUI 成功訊息簡化、GUI 分支化）與風險 **K21**；**T-18 標為僅 `feature/gui`**、K8 同此；T-01 / T-21 之描述、風險與驗收條件改寫；§7 進度表補 T-40 並更新 T-01 / T-18 / T-21；§7 之「與 DESIGN 之刻意差異」補述 GUI 移出後之理由。 **【2026-08-22 同日修訂】** 分支專屬措辭（「本分支不適用」）改為分支中立（「僅 `feature/gui`」），使本文件在三個分支逐字相同——首版寫法會讓 `feature/gui` 與 `feature/phase-two` 每次合併都在 12 份共用文件上衝突。 |
 | **v2.1** | **2026-08-18** | **T-22 / T-29 / T-38 三案一併執行完畢**（依 PM 於 P-23 之同意）：全部產出範例已以實跑輸出取代或補入 —— 第一階段 T 字帳與彙整表（**兩處**：`產出範例/` 與 `檔案位子範例/產出範例/`，`F27` 手誤殘值隨之消失，**R-06 結案**）、第二階段 T 字帳 113/114（版面改為定案版）、第二階段彙總表 113/114（**原本缺件，本次新增**）。PM 隨附之 `共保保費_..._彙整表11505_115年.xlsx` 保留不動（非本程式產出）。§7 / §7.2 進度表三列改為已完成。**本專案目前無待業務方確認之項目** |
 | **v2.0** | **2026-08-18** | **階段八實作完成（M12）**：T-32 ~ T-37 全數完成並通過驗收，**測試 56 → 63 項**全綠、實跑產出 **6 檔**、exit code 0。§7.2 進度表改寫為實際產出紀錄並補上首次實跑驗證段。**兩項與規劃之差異**：① 測試數 63 而非預估之 65——數個案例合併於同一測試方法以追加斷言涵蓋（TC-E2E-11 併入 TC-E2E-14、TC-N-31 併入 TC-N-32）；② **T-34 依規劃先行完成並以逐格比對確認純重構**（彙整表產出檔 218 格完全相同），故 K19 未實際發生。**T-38 維持待業務方確認**，與 T-22 / T-29 併辦 |
 | **v1.9** | **2026-08-18** | **M11（任務部分）完成——新增階段八：第二階段·賠款彙總表 T-32 ~ T-38**（P-14 ~ P-23 已結案）。任務內容：T-32 彙總表常數與 M12 模型、T-33 二維分群、**T-34 抽出 `SummarySheetPainter`（純重構，公式字串單點化）**、T-35 賠款彙總表寫入器（含 `J23` 零和自驗）、T-36 服務層編排與備份清單擴充（6 檔）、T-37 測試（9 新案例，56 → **65 項**）、T-38 範例補件（與 T-22 / T-29 併辦）。§3 任務總覽之階段八由「⏳ 未拆分」改為 **T-32 ~ T-38**；§5 新增階段八依賴圖並註明 **T-34 應先行且須確認 56 項全綠**；§6 新增風險 **K19 ~ K22**——其中 **K20 為本階段最關鍵**：`G` 欄誤用逐家 `M12` 時**`J23` 零和檢查擋不住**（中央再保差額法會吸收全部差異），必須靠逐家金額斷言；§7 新增 **7.2 階段八進度表**；T-29 註記 PM 已於 2026-08-18 同意方向並改與 T-38 併辦 |

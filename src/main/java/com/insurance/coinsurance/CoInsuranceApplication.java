@@ -6,8 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 /**
  * 傷害及健康保險共保月帳單報表產生系統。
  *
- * <p>實際進入點為 {@code entry.CliLauncher}（fat jar 之主類別）。本類別僅作為 Spring Boot
- * 之設定根。GUI 已移出至 {@code feature/gui} 分支（TASK T-40）。
+ * <p>本類別僅作為 Spring Boot 之設定根，實際進入點在 {@code entry} 之下：
+ * {@code CliLauncher}（CLI，三個分支皆有）與 {@code FxLauncher}（GUI，僅 {@code feature/gui}）。
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
