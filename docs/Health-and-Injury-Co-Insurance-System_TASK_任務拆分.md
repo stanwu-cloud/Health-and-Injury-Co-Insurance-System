@@ -6,13 +6,19 @@
 | --- | --- |
 | 文件名稱 | 任務拆分表 |
 | 文件代碼 | Health-and-Injury-Co-Insurance-System_TASK_任務拆分 |
-| 目前版本 | **v1.2** |
+| 目前版本 | **v1.3** |
 | 建立日期 | 2026-08-03 |
-| 最後更新 | 2026-08-10 |
+| 最後更新 | **2026-08-22** |
 | 作者 | AI 分析 |
 | 狀態 | Draft |
 
 > **文件維護原則**：單一常駐文件，改版直接更新本檔，版本歷程見 §8。
+
+> **【分支歸屬｜2026-08-22】GUI（JavaFX）已自本分支移除，改由 `feature/gui` 單獨維護。**
+> 本分支只有 CLI 批次進入點（`entry/CliLauncher`），`pom.xml` 不含 JavaFX 依賴。
+> 本文件凡標示 **GUI** 之條目（技術選型、進入點、功能範圍、手動驗收）於本分支**不成立**，
+> 一律移至 `feature/gui`；條目本身保留不刪，以免日後回查業務回覆時對不上。
+> 報表計算與產出邏輯兩分支**完全同源**，仍以本文件為單一事實來源。
 
 **依據**：`..._REQ_需求規格.md`（v1.0）、`..._DESIGN_系統設計.md`（v1.0）、`..._RULE_規則定義.md`（v3.2）。
 
@@ -34,7 +40,8 @@
 | 階段二 輸入處理 | T-04 ~ T-06 | CSV 讀取、欄位檢核、年月一致性 |
 | 階段三 計算核心 | T-07 ~ T-10 | 保費、賠款、分攤、管理費 |
 | 階段四 報表產出 | T-11 ~ T-15 | 樣板寫入、格式、備份、報告檔 |
-| 階段五 進入點 | T-16 ~ T-18 | 服務編排、CLI、GUI |
+| 階段五 進入點 | T-16 ~ T-18 | 服務編排、CLI、~~GUI~~（T-18 已移至 `feature/gui`） |
+| **階段九 GUI 分支化** | **T-40** | **GUI 移出至 `feature/gui`；本分支只留 CLI 進入點** |
 | 階段六 測試與交付 | T-19 ~ T-22 | 整合測試、打包、文件、範例更新 |
 
 ---
@@ -47,11 +54,11 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 描述 | 建立 Maven 專案（Spring Boot 3.5.0、Java 17、POI 5.3.0、JavaFX 21），設定 `mvnw.cmd`、`logback-spring.xml`、`build.bat` / `拜託執行我.bat`（原 `run.bat`）、`.gitignore`（已存在），建立 DESIGN §3.3 之執行目錄結構 |
+| 描述 | 建立 Maven 專案（Spring Boot 3.5.0、Java 17、POI 5.3.0；**JavaFX 21 已於 2026-08-22 自本分支移除，見 T-40**），設定 `mvnw.cmd`、`logback-spring.xml`、`build.bat` / `拜託執行我.bat`（原 `run.bat`）、`.gitignore`（已存在），建立 DESIGN §3.3 之執行目錄結構 |
 | 前置依賴 | 無 |
 | 預期輸出 | `pom.xml`、`mvnw.cmd`、專案套件骨架、`config/application.yml`、`build.bat`、`拜託執行我.bat` |
 | 驗收條件 | `mvnw.cmd clean package -DskipTests` 成功；`java -jar target/*.jar --help` 可執行 |
-| 風險 | JavaFX 依賴於 fat jar 之打包方式（見 T-18 之 D8） |
+| 風險 | ~~JavaFX 依賴於 fat jar 之打包方式（見 T-18 之 D8）~~ **本分支已無此風險**（JavaFX 移出） |
 | 優先級 | **P0** |
 
 #### T-02 常數與資料模型
@@ -246,7 +253,9 @@
 | 風險 | 參數名稱為【推論】，需與使用者確認 |
 | 優先級 | **P2** |
 
-#### T-18 JavaFX GUI
+#### T-18 JavaFX GUI（**本分支不適用——已移至 `feature/gui`**）
+
+> 2026-08-22 起 GUI 只在 `feature/gui` 維護（見 T-40）。本任務保留供追溯，本分支之 `entry/` 只有 `CliLauncher` 與 `CliRunner`。
 
 | 項目 | 內容 |
 | --- | --- |
@@ -287,11 +296,11 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 描述 | 產出 fat jar；於未安裝 Maven 之機器驗證雙擊開啟 GUI 與 `拜託執行我.bat` 批次執行；撰寫 `README.md` 快速開始 |
+| 描述 | 產出 fat jar；於未安裝 Maven 之機器驗證 `拜託執行我.bat` 批次執行；撰寫 `README.md` 快速開始（**「雙擊開啟 GUI」之驗證移至 `feature/gui`**） |
 | 前置依賴 | T-17、T-18 |
 | 預期輸出 | `target/*.jar`、`README.md`、`build.bat` / `拜託執行我.bat`、`系統操作說明.docx` |
-| 驗收條件 | 目標機器（JDK 17）雙擊 jar 可開啟 GUI；`拜託執行我.bat` 可完成編譯與批次執行 |
-| 風險 | JavaFX 原生依賴之平台相依性 |
+| 驗收條件 | 目標機器（JDK 17）`java -jar` 直接完成批次且 exit code 0；`拜託執行我.bat` 可完成編譯與批次執行 |
+| 風險 | ~~JavaFX 原生依賴之平台相依性~~ **本分支已無此風險**；改為留意 fat jar 由 44 MB 降至約 35 MB 屬預期（JavaFX 移出所致），非打包缺件 |
 | 優先級 | **P2** |
 
 #### T-22 更新產出範例（收尾）
@@ -304,6 +313,21 @@
 | 驗收條件 | 範例檔金額與文件基準值一致（**21,009 / 202,183 / −24,512 / +8,882**）；版面符合現行規格（I3 單格、P4 年） |
 | 風險 | 須經業務方確認後才可取代原始參考檔 |
 | 優先級 | **P3** |
+
+---
+
+### 階段九：GUI 分支化
+
+#### T-40 GUI 分支化（本分支：移除）
+
+| 項目 | 內容 |
+| --- | --- |
+| 描述 | 將 GUI 相關程式與設定集中至 `feature/gui`。本分支移除 `entry/FxLauncher`、`entry/FxApplication`、`entry/MainController`；`pom.xml` 移除三個 JavaFX 依賴與 `javafx.version` / `javafx.platform` 屬性；新增 `entry/CliLauncher` 作為 fat jar 主類別。`--mode=cli` **保留相容**（既有 `.bat` 與排程仍帶著它），由 `CliRunner.parse` 忽略 |
+| 前置依賴 | T-18、T-21 |
+| 預期輸出 | `entry/CliLauncher`（新增）、`pom.xml` / `CliRunner` / `CoInsuranceApplication` 修改、三個 GUI 類別刪除、八份常駐文件與 `README.md` / `CLAUDE.md` 加註分支歸屬 |
+| 驗收條件 | `pom.xml` 除註解外無 `javafx` 字樣；`mvnw.cmd -o test` 38 項全綠；`java -jar target/*.jar` **直接進 CLI** 並產出 2 檔、exit code 0、金額 350,123 / 126,931 / 21,009 / 202,183 不變 |
+| 風險 | 報表邏輯必須與 `feature/gui` 保持同源——GUI 分支只接收本分支之合併，**不得**在該分支修改 `calculator/` 或 `writer/`，否則兩邊各自演化後合併必然衝突 |
+| 優先級 | **P2** |
 
 ---
 
@@ -338,7 +362,7 @@ T-01 ─► T-14 備份與清除 ───────────────�
                                       T-16 服務編排
                                     ┌────────┴────────┐
                                     ▼                 ▼
-                              T-17 CLI          T-18 GUI
+                              T-17 CLI     (T-18 GUI → feature/gui)
                                     └────────┬────────┘
                                              ▼
                           T-19 單元測試 / T-20 整合測試
@@ -361,7 +385,8 @@ T-01 ─► T-14 備份與清除 ───────────────�
 | K5 | 中央再保依列號而非代號判定 | T-09、T-12 | 測試：將 N19 移至任意列，結果不變 |
 | K6 | 沿用規格書 v1.0 之偏移儲存格 | T-11 | 以 G20/G21/O21 斷言 |
 | K7 | 以產出範例檔金額作驗收基準 | T-19、T-20 | 測試僅引用文件基準值；程式碼審查把關 |
-| K8 | JavaFX fat jar 啟動失敗 | T-18、T-21 | Launcher 間接啟動；早期即做打包驗證 |
+| ~~K8~~ | ~~JavaFX fat jar 啟動失敗~~ **本分支已不適用**（T-40 移出 JavaFX）；於 `feature/gui` 仍然有效 | ~~T-18、T-21~~ | Launcher 間接啟動；早期即做打包驗證 |
+| **K21** | **兩分支之報表邏輯各自演化** | T-40 | `feature/gui` 只接收本分支之合併；該分支不得改 `calculator/` 或 `writer/` |
 | K9 | Big5 解碼誤用 UTF-8 | T-04 | 編碼設為常數 + 中文欄位斷言 |
 | K10 | POI CellStyle 數量超限 | T-13 | 共用樣式物件 |
 
@@ -371,7 +396,7 @@ T-01 ─► T-14 備份與清除 ───────────────�
 
 | 任務 | 狀態 | 實際產出／備註 |
 | --- | --- | --- |
-| T-01 專案骨架 | ✔ | `pom.xml`（Spring Boot 3.5.0 / Java 17 / POI 5.3.0 / JavaFX 21.0.5）、`mvnw.cmd`、`logback-spring.xml`、`config/application.yml`、`build.bat`、`拜託執行我.bat` |
+| T-01 專案骨架 | ✔ | `pom.xml`（Spring Boot 3.5.0 / Java 17 / POI 5.3.0；~~JavaFX 21.0.5~~ 已移出）、`mvnw.cmd`、`logback-spring.xml`、`config/application.yml`、`build.bat`、`拜託執行我.bat` |
 | T-02 常數與模型 | ✔ | `PremiumColumn`（19）、`ClaimColumn`（22，含個資遮蔽標記）、`TAccountCell`、`SummaryCell`、`CoInsuranceConstants`、全部 model |
 | T-03 設定檔讀取 | ✔ | `SettingReader` + `AppConfig`；實測 16 家、合計 100%、末筆 國泰產險/N15/6% |
 | T-04 CSV 讀取 | ✔ | `CsvReader`（Big5 固定解碼、表頭驗證、RFC 4180 引號支援）+ 兩支 Reader；實測 2,193 / 14 列 |
@@ -388,10 +413,11 @@ T-01 ─► T-14 備份與清除 ───────────────�
 | T-15 執行報告 | ✔ | `ReportJsonWriter` + `MaskUtil`；檢核失敗仍產出 |
 | T-16 服務編排 | ✔ | `ReportGenerationService`，含 R-CALC-16 三組一致性檢查；不 `System.exit()`、不直接印訊息 |
 | T-17 CLI | ✔ | `CliRunner`，`--year` / `--month` / `--mode=cli`，exit code 0/1/2/3 |
-| T-18 GUI | ✔ | `FxLauncher`（不繼承 `Application`）+ `FxApplication` + `MainController`（程式化版面） |
+| T-18 GUI | ✔ →**已移出**（2026-08-22） | `FxLauncher` + `FxApplication` + `MainController` 移至 `feature/gui`；本分支 `entry/` 只剩 `CliLauncher` + `CliRunner` |
+| **T-40 GUI 分支化** | ✔（**2026-08-22**） | 移除三個 `entry` 類別與 JavaFX 依賴；新增 `entry/CliLauncher`。實測：38 項測試全綠、fat jar 直接進 CLI 產出 2 檔、exit code 0、金額 350,123 / 126,931 / 21,009 / 202,183 未變 |
 | T-19 單元測試 | ✔ | 見下方測試彙總 |
 | T-20 整合與反向測試 | ✔ | 端到端測試以 POI `XSSFFormulaEvaluator` 實際求值產出檔公式後比對 |
-| T-21 打包與部署驗證 | ✔ | fat jar 44 MB；CLI 與 GUI 皆實測可執行；`README.md` 已撰寫 |
+| T-21 打包與部署驗證 | ✔ | fat jar ~~44 MB~~ → **約 35 MB**（JavaFX 移出後，2026-08-22 實測）；CLI 實測可執行；`README.md` 已撰寫 |
 | T-22 更新產出範例 | **待業務方確認** | 依本任務風險欄「須經業務方確認後才可取代原始參考檔」，故未執行；程式首次實跑輸出已驗證與基準值一致 |
 
 **測試彙總**：38 項全數通過。
@@ -408,7 +434,8 @@ T-01 ─► T-14 備份與清除 ───────────────�
 
 **與 DESIGN 之刻意差異（1 項）**
 
-`CliRunner` 未實作 `CommandLineRunner`（DESIGN §3.1 原標示為 `CommandLineRunner`）。原因：CLI 與 GUI 共用同一個 Spring 容器，若採 `CommandLineRunner` 會在 GUI 模式啟動時自動執行批次。改由 `FxLauncher` 依 `--mode=cli` 明確呼叫，行為與驗收條件不變。
+`CliRunner` 未實作 `CommandLineRunner`（DESIGN §3.1 原標示為 `CommandLineRunner`）。原因：CLI 與 GUI 共用同一個 Spring 容器，若採 `CommandLineRunner` 會在 GUI 模式啟動時自動執行批次。改由主類別明確呼叫，行為與驗收條件不變。
+**GUI 移出後（T-40）此差異仍保留**：呼叫端由 `FxLauncher` 換成 `CliLauncher`，理由改為「批次的觸發時機屬於進入點，容器建立本身不該有副作用」——測試也才能單獨組裝容器而不觸發整批產出。
 
 ---
 
@@ -419,3 +446,4 @@ T-01 ─► T-14 備份與清除 ───────────────�
 | v1.0 | 2026-08-03 | 初版；22 項任務分六階段，含前置依賴、預期輸出、可測試之驗收條件、風險與優先級；附依賴關係圖與 10 項風險彙總 |
 | v1.1 | 2026-08-04 | 新增 §7 實作完成狀態：T-01 ~ T-21 完成、T-22 待業務方確認；附 38 項測試彙總與 1 項與 DESIGN 之刻意差異說明 |
 | **v1.2** | **2026-08-10** | 依 2026-08-10 業務調整同步 T-01 / T-06 / T-09 / T-10 / T-11 / T-12 / T-17 / T-21 / T-22 之驗收條件與預期輸出：管理費率 6%、成分 7.5%/7%、G 欄正值、`run.bat` → `拜託執行我.bat`（含編譯）、新增 `系統操作說明.docx`；K4 斷言值改為 21,009。38 項測試於基準更新後全數通過 |
+| **v1.3** | **2026-08-22** | **GUI 分支化（本分支移除 GUI）**：GUI（JavaFX）自 2026-08-22 起只在 `feature/gui` 維護。本分支移除 `FxLauncher` / `FxApplication` / `MainController` 與 `pom.xml` 之三個 JavaFX 依賴，主類別改為 `entry/CliLauncher`；於文件資訊後加註分支歸屬。**業務決策與報表邏輯一字未改**，變更的只是 GUI 的實作歸屬。 本文件異動：新增**階段九 T-40**（GUI 分支化）與風險 **K21**；**T-18 標為本分支不適用**、K8 標為不適用；T-01 / T-21 之描述、風險與驗收條件改寫；§7 進度表補 T-40 並更新 T-01 / T-18 / T-21；§7 之「與 DESIGN 之刻意差異」補述 GUI 移出後之理由。 |
