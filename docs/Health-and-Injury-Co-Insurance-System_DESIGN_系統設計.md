@@ -6,22 +6,13 @@
 | --- | --- |
 | 文件名稱 | 系統設計書 |
 | 文件代碼 | Health-and-Injury-Co-Insurance-System_DESIGN_系統設計 |
-| 目前版本 | **v1.2** |
+| 目前版本 | **v1.1** |
 | 建立日期 | 2026-08-03 |
-| 最後更新 | **2026-08-22** |
+| 最後更新 | 2026-08-10 |
 | 作者 | AI 分析 |
 | 狀態 | Draft |
 
 > **文件維護原則**：單一常駐文件，改版直接更新本檔，版本歷程見 §13。
-
-> **【分支歸屬｜2026-08-22】GUI（JavaFX）只在 `feature/gui` 分支。**
-> `dev` 與 `feature/phase-two` 不含 `FxLauncher` / `FxApplication` / `MainController` 與 JavaFX 依賴，
-> fat jar 主類別為 `entry/CliLauncher`，`java -jar` 直接進批次。
-> 本文件凡標示「**僅 `feature/gui`**」之條目只在該分支成立；條目一律保留不刪，
-> 以免日後回查業務回覆時對不上。報表計算與產出邏輯三個分支**完全同源**。
->
-> **本段與本文件全文在三個分支必須逐字相同**——分支專屬敘述（「本分支不適用」之類）
-> 一旦寫進共用文件，每次合併都會在同一處衝突；這正是 2026-08-22 首版的錯誤，已改為中立措辭。
 
 **依據**：`..._REQ_需求規格.md`（v1.0）、`..._RULE_規則定義.md`（v3.2）、`..._MAPPING_欄位對照.md`（v3.2）；架構參考 `D:\project\retained-premium-report-transformer` 與 `D:\project\excel-report-integration-engine`。
 
@@ -40,7 +31,7 @@
 | 語言 | Java 17 | 兩個參考專案一致 |
 | 應用框架 | Spring Boot 3.5.0 | `retained-premium-report-transformer` 同版 |
 | Excel 處理 | Apache POI 5.3.0（`poi` + `poi-ooxml`） | 兩個參考專案一致 |
-| ~~GUI~~ | ~~**JavaFX 21**（LTS，相容 Java 17）~~ **僅 `feature/gui`（2026-08-22 分出）**；`dev` / `feature/phase-two` 之 `pom.xml` 無 JavaFX 依賴 | 業務回覆 A-09(v0.3)／使用者決策 2026-08-22 |
+| GUI | **JavaFX 21**（LTS，相容 Java 17） | 業務回覆 A-09(v0.3) |
 | JSON | Jackson（Spring Boot 內建） | 產出 `report.json` |
 | 日誌 | Logback（`logback-spring.xml`） | 參考專案慣例 |
 | 建置 | Maven（`mvnw.cmd` wrapper） | 本機無 `mvn`，需 wrapper |
@@ -51,10 +42,9 @@
 | 模式 | 進入點 | 觸發 |
 | --- | --- | --- |
 | CLI 批次 | `java -jar xxx.jar --mode=cli [--year=115 --month=5]` 或 `拜託執行我.bat`（含編譯） | 承辦人員或排程 |
-| ~~GUI~~ | ~~雙擊 jar，或 `java -jar xxx.jar`（預設）~~ **已移出至 `feature/gui`** | 承辦人員 |
+| GUI | 雙擊 jar，或 `java -jar xxx.jar`（預設） | 承辦人員 |
 
-`dev` / `feature/phase-two` 只有 CLI 一種模式：`java -jar xxx.jar` **直接進批次**，不再需要 `--mode=cli` 切換（該參數仍容許出現，供既有 `.bat` 與排程沿用）。
-GUI 仍在 `feature/gui` 分支，兩者**共用同一核心服務層**，差異僅在輸入取得與結果呈現。
+兩模式**共用同一核心服務層**，差異僅在輸入取得與結果呈現。
 
 ---
 
@@ -65,14 +55,13 @@ GUI 仍在 `feature/gui` 分支，兩者**共用同一核心服務層**，差異
 ```
 ┌──────────────────────────────────────────────────────┐
 │  進入點層 (entry)                                     │
-│  ┌────────────────────┐                               │
-│  │ CliLauncher        │   fat jar 主類別              │
-│  │  └ CliRunner       │   (刻意非 CommandLineRunner)  │
-│  └─────────┬──────────┘                               │
-│            │  GUI 之 FxLauncher / FxApplication /     │
-│            │  MainController 在 feature/gui 分支      │
-└────────────┼──────────────────────────────────────────┘
-             ▼
+│  ┌────────────────────┐  ┌────────────────────────┐  │
+│  │ CliRunner          │  │ FxApplication          │  │
+│  │ (CommandLineRunner)│  │ (JavaFX Application)   │  │
+│  └─────────┬──────────┘  └───────────┬────────────┘  │
+└────────────┼─────────────────────────┼───────────────┘
+             └───────────┬─────────────┘
+                         ▼
 ┌──────────────────────────────────────────────────────┐
 │  服務編排層 (service)                                 │
 │  ReportGenerationService  ← 唯一對外入口              │
@@ -98,9 +87,10 @@ GUI 仍在 `feature/gui` 分支，兩者**共用同一核心服務層**，差異
 com.insurance.coinsurance
 ├── CoInsuranceApplication.java        Spring Boot 進入點
 ├── entry/
-│   ├── CliLauncher.java               fat jar 主類別 (建立容器、呼叫 CliRunner)
-│   └── CliRunner.java                 CLI 模式 (刻意非 CommandLineRunner)
-│   （FxLauncher / FxApplication / MainController 已移至 feature/gui）
+│   ├── CliRunner.java                 CLI 模式 (CommandLineRunner)
+│   ├── FxLauncher.java                fat jar 主類別 (不繼承 Application)
+│   ├── FxApplication.java             JavaFX Application
+│   └── MainController.java            JavaFX 畫面控制器
 ├── config/
 │   ├── AppConfig.java                 路徑等外部設定
 │   └── SettingReader.java             讀取 config/application.xlsx
@@ -178,7 +168,7 @@ com.insurance.coinsurance
 | **validator** | 逐列逐欄檢核，**收集全部錯誤不中斷** | R-VAL-01/02/03/04 | `List<ValidationError> validate(...)` |
 | **calculator** | M1~M8 全部金額計算 | R-CALC-01~16 | `CalculationResult calculate(...)` |
 | **writer** | 套樣板、寫值與公式、套格式、改工作表名、備份、產 report.json | R-OUT-01~07、R-PATH-04/06 | `void write(...)` |
-| **entry** | CLI 進入點、參數解析、結果呈現（**GUI 進入點已移至 `feature/gui`**） | R-RUN-01~04、R-RUN-06（R-RUN-05 僅該分支） | — |
+| **entry** | CLI 與 GUI 進入點、參數解析、結果呈現 | R-RUN-01~06 | — |
 | **service** | 流程編排、跨報表一致性檢查 | R-CALC-16 | `ExecutionResult execute(ExecutionRequest)` |
 
 ### 4.1 關鍵設計決策
@@ -192,9 +182,8 @@ com.insurance.coinsurance
 | D5 | 彙整表 A 欄**不覆寫**，改以樣板 A 欄名稱查設定檔 | 列順序以樣板為準（B04），且可偵測名稱不一致（R-EXC-06） |
 | D6 | 計算欄位寫入 **公式字串**而非數值 | 可稽核（NF-12）；中央再保列之 SUM 範圍依其實際列號動態產生 |
 | D7 | 檢核採「收集後判定」而非「遇錯即拋」 | 需一次列出全部錯誤（A-18-2） |
-| D8 | ~~fat jar 主類別 `FxLauncher` **不繼承** `javafx.application.Application`~~ **僅 `feature/gui` 適用（2026-08-22 起）**：`dev` / `feature/phase-two` 之主類別為 `entry/CliLauncher`，不涉及 JavaFX。原理由（JavaFX 打包進 fat jar 時，主類別若直接繼承 `Application` 會因缺少模組路徑而啟動失敗）**於 `feature/gui` 仍然成立**，該分支不得改寫其主類別 | 見左欄 |
-| **D24**（僅 `feature/gui`） | **GUI 之成功畫面只顯示「用了哪些匯入檔」與「產出了哪些報表」；中止畫面維持原樣** | 兩個進入點的讀者不同：CLI 由承辦人員或排程取用，輸出會進主控台與日誌，適合帶金額摘要；GUI 是操作當下的即時回饋，畫面上的金額極易被當成對帳依據而略過 `report.json`。**中止時反而不能簡化**——失敗要能一眼看出原因，故失敗分支一字不動。保費檔缺檔（P-12）不另立警語，靠「未提供：`VOLP{YYYMM}.csv`」與產出清單裡沒有共保月帳單，事實已完整呈現 |
-| D9 | 全部進入點共用 `ReportGenerationService`，該服務**不得** `System.exit()` 或直接印訊息 | 中止行為由進入點決定，服務層只回傳 `ExecutionResult`。**GUI 移出後這條更重要**——兩個分支的進入點各自決定呈現方式，服務層一旦印訊息或 `exit`，兩邊就會互相牽制 |
+| D8 | fat jar 主類別 `FxLauncher` **不繼承** `javafx.application.Application` | JavaFX 打包進 fat jar 時，主類別若直接繼承 `Application` 會因缺少模組路徑而啟動失敗 |
+| D9 | GUI 與 CLI 共用 `ReportGenerationService`，該服務**不得** `System.exit()` 或直接印訊息 | 中止行為由進入點決定，服務層只回傳 `ExecutionResult` |
 
 ---
 
@@ -203,7 +192,7 @@ com.insurance.coinsurance
 ### 5.1 主流程
 
 ```
-[進入點] CLI 參數（GUI 輸入見 feature/gui）
+[進入點] CLI 參數 / GUI 輸入
    │  ExecutionRequest(year, month, overridden)
    ▼
 [1] SettingReader.load()
@@ -238,7 +227,7 @@ com.insurance.coinsurance
    ▼
 [9] ReportJsonWriter：覆寫 ./logs/report.json
    ▼
-[進入點] CLI 印摘要並設定 exit code（GUI 顯示見 feature/gui）
+[進入點] CLI 印摘要並設定 exit code / GUI 顯示結果與錯誤表格
 ```
 
 ### 5.2 計算相依順序（重要）
@@ -336,8 +325,8 @@ app:
 
 | 類別 | 語意 | 進入點行為 |
 | --- | --- | --- |
-| `FatalException` | 前置資源或環境問題（缺檔、格式錯誤、成分不符、備份失敗） | CLI：印訊息、exit code 2（GUI 之對話框在 `feature/gui`） |
-| `ValidationFailedException` | 匯入檔資料檢核失敗（攜帶 `List<ValidationError>`） | CLI：印全部錯誤、exit code 1（GUI 之錯誤表格在 `feature/gui`） |
+| `FatalException` | 前置資源或環境問題（缺檔、格式錯誤、成分不符、備份失敗） | CLI：印訊息、exit code 2；GUI：彈出錯誤對話框 |
+| `ValidationFailedException` | 匯入檔資料檢核失敗（攜帶 `List<ValidationError>`） | CLI：印全部錯誤、exit code 1；GUI：於表格列出全部錯誤 |
 | 其他 `RuntimeException` | 未預期錯誤 | 記錄堆疊、exit code 3 |
 
 **共通**：任一例外皆**不產出任何報表**（兩表同進退），但**仍產出 `report.json`** 以保留錯誤明細。
@@ -425,7 +414,7 @@ app:
 | 單元測試 | calculator、validator、util | 金額計算之精確值、捨入方向、差額法、日期與長度檢核、遮蔽格式 |
 | 整合測試 | service 全流程 | 以 `檔案位子範例/` 為基準輸入，比對產出檔之儲存格值與公式 |
 | 反向測試 | 例外路徑 | 缺檔、成分 ≠ 100%、表頭錯置、出生日期 6 碼、年月不符、名稱查無對應 |
-| 手動驗收 | 部署與報表目視 | fat jar 於目標機器執行、`拜託執行我.bat` 批次、備份行為、兩張報表版面（**GUI 相關之手動驗收移至 `feature/gui`**） |
+| 手動驗收 | GUI 與部署 | fat jar 雙擊、畫面錯誤清單、備份行為 |
 
 **測試資料基準**：`docs/規格書/檔案位子範例/`（R-04 已同步，可直接使用）。
 **驗收數值基準**：本文件系列所載之計算結果（350,123 / 126,931 / **21,009** / **202,183** / **−24,512** / **+8,882**）。
@@ -442,8 +431,8 @@ app:
 | D-01 | 【推論】`config/application.yml` 之技術性設定項目（路徑、備份保留月數、遮蔽開關）為設計提案，未經業務方確認 | 低 |
 | D-02 | 【推論】exit code 定義（0/1/2/3）為設計提案 | 低 |
 | D-03 | 【推論】姓名與出生日期之遮蔽格式（業務僅明確指定身分證號 `A12****789`） | 低 |
-| ~~D-04~~ | ~~【推論】JavaFX 版本選 21 LTS；若部署環境限制需調整~~ **僅 `feature/gui` 適用**（2026-08-22 GUI 分支化） | 低（僅 `feature/gui`） |
-| ~~D-05~~ | ~~GUI 畫面之具體版面（欄位配置、按鈕文字）尚未定稿，僅定義功能範圍~~ **僅 `feature/gui` 適用**（2026-08-22 GUI 分支化） | 中（僅 `feature/gui`） |
+| D-04 | 【推論】JavaFX 版本選 21 LTS；若部署環境限制需調整 | 低 |
+| D-05 | GUI 畫面之具體版面（欄位配置、按鈕文字）尚未定稿，僅定義功能範圍 | 中 |
 
 ---
 
@@ -451,6 +440,5 @@ app:
 
 | 版本 | 日期 | 內容 |
 | --- | --- | --- |
-| **v1.2** | **2026-08-22** | **GUI 分支化（本分支移除 GUI）**：GUI（JavaFX）自 2026-08-22 起只在 `feature/gui` 維護。本分支移除 `FxLauncher` / `FxApplication` / `MainController` 與 `pom.xml` 之三個 JavaFX 依賴，主類別改為 `entry/CliLauncher`；於文件資訊後加註分支歸屬。**業務決策與報表邏輯一字未改**，變更的只是 GUI 的實作歸屬。 本文件異動：§2.2 技術選型、§2.3 執行模式、§3.1 分層架構圖、§3.2 套件結構、§4 模組職責之 entry 列、**D8 標為僅 `feature/gui`**、D9 理由補述、§5.1 主流程之進入點、§8.1 進入點行為、§11 手動驗收範圍、§12 之 D-04 / D-05 標為僅 `feature/gui`。 **【2026-08-22 同日修訂】** 分支專屬措辭（「本分支不適用」）改為分支中立（「僅 `feature/gui`」），使本文件在三個分支逐字相同——首版寫法會讓 `feature/gui` 與 `feature/phase-two` 每次合併都在 12 份共用文件上衝突。 |
 | **v1.1** | **2026-08-10** | 依 2026-08-10 業務調整同步：管理費率 5% → **6%**（`CoInsuranceConstants.MANAGEMENT_FEE_RATE` / `SummaryCell.MGMT_FEE_RATE` = `0.06`）；`run.bat` 更名為 `拜託執行我.bat` 並併入 `mvnw.cmd clean package -DskipTests`；驗收數值基準更新為 21,009 / 202,183 / −24,512 / +8,882 |
 | v1.0 | 2026-08-03 | 初版；定義分層架構、套件結構、7 大模組、9 項關鍵設計決策、主流程與計算相依順序、資料模型、設定檔、錯誤處理與 exit code、日誌與個資遮蔽、7 項擴充點、測試策略 |

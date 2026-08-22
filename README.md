@@ -3,22 +3,11 @@
 讀取共保系統匯出的兩支 CSV，套用既有 Excel 樣板，產出當月共保月帳單的兩張報表（T 字帳、彙整表）。
 
 - 執行環境：Windows + JDK 17
-- 執行方式為 **CLI 批次**（`拜託執行我.bat`）；**GUI（雙擊 `開啟畫面.bat`）自 2026-08-22 起只在 `feature/gui` 分支**，兩者共用同一核心服務層
+- 提供 **GUI**（雙擊 jar）與 **CLI 批次**（`拜託執行我.bat`）兩種模式，共用同一核心服務層
 - 給使用者的操作說明另見專案根目錄之 `系統操作說明.docx`
 - 規格文件見 `docs/`；架構與規則以 `..._DESIGN_系統設計.md`、`..._RULE_規則定義.md` 為準
 
 ---
-
-> **⚠ 分支歸屬（2026-08-22）：GUI 只在 `feature/gui` 分支。**
-> `dev` 與 `feature/phase-two` 不含 `FxLauncher` / `FxApplication` / `MainController`、`開啟畫面.bat`
-> 與 `pom.xml` 之三個 JavaFX 依賴；那兩個分支的 fat jar 主類別是 `entry/CliLauncher`，
-> `java -jar target\health-and-injury-co-insurance-system.jar` **直接進批次**
-> （`--mode=cli` 保留相容但已無作用，供既有 `.bat` 與排程沿用）。
->
-> 報表計算與產出邏輯三個分支**完全同源**，`feature/gui` 只接收 `feature/phase-two` 的合併。
-> **共用檔案（`docs/`、本檔、`CLAUDE.md`、`entry/CliRunner`、`entry/CliLauncher`、
-> `CoInsuranceApplication`）在各分支必須逐字相同**——分支專屬敘述一旦寫進去，每次合併都會在同一處衝突。
-> 真正允許分歧的只有：`pom.xml`、`開啟畫面.bat` 與三個 `Fx*` / `MainController` 類別。
 
 ## 快速開始
 
@@ -28,7 +17,7 @@
 build.bat
 ```
 
-產出 `target\health-and-injury-co-insurance-system.jar`（fat jar）。`dev` / `feature/phase-two` **不含 JavaFX**，約 35 MB；`feature/gui` 含 JavaFX，約 44 MB。
+產出 `target\health-and-injury-co-insurance-system.jar`（fat jar，含 JavaFX）。
 本機無 `mvn`，一律使用專案內的 `mvnw.cmd`。
 
 ### 2. 準備資料
@@ -49,7 +38,7 @@ input/{YYYMM}/VOLC{YYYMM}.csv  理賠匯入檔（可缺，缺檔時賠款以 0 �
 ```
 拜託執行我.bat                        編譯 + CLI 批次，年月取自設定檔
 拜託執行我.bat --year=115 --month=5   編譯 + CLI 批次，年月由參數覆寫（優先於設定檔）
-java -jar target\...jar               直接進 CLI 批次（不需 --mode=cli）
+雙擊 target\...jar                    開啟 GUI
 ```
 
 `拜託執行我.bat`（原 `run.bat`）已內含 `mvnw.cmd clean package -DskipTests`，
