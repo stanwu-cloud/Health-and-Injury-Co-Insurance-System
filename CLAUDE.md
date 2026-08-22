@@ -16,6 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 第二階段一律在 `feature/phase-two` 開發，驗收後才合回 `dev`。
 
+- **GUI（`feature/gui`，2026-08-22 分出）**：**本分支是唯一保留 JavaFX GUI 的分支**。`dev` 與 `feature/phase-two` 已移除 `entry/FxLauncher`、`entry/FxApplication`、`entry/MainController`、`開啟畫面.bat` 與 `pom.xml` 之三個 JavaFX 依賴，主類別改為 `entry/CliLauncher`。報表邏輯三分支同源——**本分支只接收 `feature/phase-two` 的合併，不得在此改 `calculator/` 或 `writer/`**，否則兩邊會各自演化。文件不分家，改為在文件資訊後加一段「分支歸屬」提示（十份常駐文件皆有），GUI 專屬條目（R-RUN-05、NF-06/07、T-18、T-39/T-40、TC-M-01~03）只在本分支成立。
+
 ## 常用指令
 
 ```
@@ -37,6 +39,7 @@ mvnw.cmd clean package -DskipTests
 
 - **`FxLauncher` 是 fat jar 的主類別，刻意不繼承 `javafx.application.Application`**；直接繼承會讓 JavaFX 以「runtime components are missing」啟動失敗。
 - **`CliRunner` 刻意不是 `CommandLineRunner`**：CLI 與 GUI 共用同一個 Spring 容器，自動執行會讓 GUI 一開就跑批次。
+- **GUI 成功畫面只有「匯入檔」與「產出報表」兩項**（R-RUN-05 / D24，2026-08-22）。金額摘要刻意不上畫面，只留在主控台與 `report.json`；**失敗分支一字未動**，中止要能一眼看出原因。保費檔缺檔的警示改由「未提供：`VOLP{YYYMM}.csv`」這一行與產出清單缺兩張共保月帳單來承載——**再簡化就會把這個訊號弄丟**。
 - **`ReportGenerationService` 不得 `System.exit()` 或直接印訊息**，只回傳 `ExecutionResult`；中止行為由進入點決定。
 - **捨入只能經 `calculator/RoundingUtil`**（固定 HALF_UP）。
 - **`writer/SummarySheetPainter` 由第一階段彙整表與第四張報表共用**（公式字串單點存在）。改它等於同時改兩張報表；`SummaryWriter` / `ClaimSummaryWriter` 只負責表頭、資料來源與命名常數。

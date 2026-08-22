@@ -16,6 +16,10 @@
 - 給使用者的操作說明另見專案根目錄之 `系統操作說明.docx`
 - 規格文件見 `docs/`；架構與規則以 `..._DESIGN_系統設計.md`、`..._RULE_規則定義.md` 為準
 
+> **⚠ 分支歸屬（2026-08-22）：GUI 只在 `feature/gui` 分支。**
+> `dev` 與 `feature/phase-two` 已移除 `FxLauncher` / `FxApplication` / `MainController`、`開啟畫面.bat` 與 `pom.xml` 之三個 JavaFX 依賴，只保留 CLI 批次進入點（`entry/CliLauncher`）。
+> 報表計算與產出邏輯三個分支**完全同源**；本分支日後只接收 `feature/phase-two` 之合併，**不得**在此修改 `calculator/` 或 `writer/`。
+
 > **第二階段（`feature/phase-two`）已全部實作完成並通過驗收**：P-01 ~ **P-23** 全數結案、T-23 ~ **T-38** 實作完畢、**63 項測試全綠**，**目前無待業務方確認之項目**。爭議與定案內容見 `docs/..._LOG_第二階段問題追蹤清單.md`；**找檔案請先看 `docs/..._GUIDE_文件與資料索引.md`**。
 
 ---
@@ -57,6 +61,12 @@ input/{YYYMM}/VOLC{YYYMM}.csv  理賠匯入檔（可缺，缺檔時賠款以 0 �
 `拜託執行我.bat`（原 `run.bat`）已內含 `mvnw.cmd clean package -DskipTests`，
 雙擊即可完成「編譯 → 執行」；若只想編譯請用 `build.bat`。
 `開啟畫面.bat` 不編譯，直接開既有的 jar，請先確認 `target\` 下已有建置產物。
+（`開啟畫面.bat` 與 GUI 一樣**只在 `feature/gui` 分支**存在。）
+
+**GUI 執行成功的畫面只顯示兩件事**（R-RUN-05 / D24）：本次使用了哪些匯入檔、成功產出了哪些報表。
+金額摘要（共保保費／攤付共保賠款／共保管理費／Balance Due）**不上畫面**，改在主控台與 `logs/report.json` 查；
+畫面上的數字太容易被當成對帳依據。**執行中止的畫面則完全不簡化**——失敗要能一眼看出原因。
+保費檔缺檔時不另跳警語，而是在匯入檔那行看到「未提供：`VOLP11505.csv`」、產出清單裡沒有共保月帳單兩張。
 
 > **不要教使用者雙擊 jar。** 雙擊 `.jar` 能否啟動取決於該台電腦有沒有把 `.jar` 關聯到 Java：
 > MSI 安裝的 JDK 通常會建立關聯，但**以解壓縮方式安裝的 JDK（例如 IDE 下載到 `%USERPROFILE%\.jdks\` 的版本）不會**，解壓縮軟體（7-Zip / WinRAR）也常把 `.jar` 關聯搶走。

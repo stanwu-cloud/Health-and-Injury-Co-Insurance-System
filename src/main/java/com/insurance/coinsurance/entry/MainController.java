@@ -1,5 +1,6 @@
 package com.insurance.coinsurance.entry;
 
+import com.insurance.coinsurance.model.ExecutionReport;
 import com.insurance.coinsurance.model.ExecutionRequest;
 import com.insurance.coinsurance.model.ExecutionResult;
 import com.insurance.coinsurance.model.ValidationError;
@@ -22,6 +23,8 @@ import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 主畫面（R-RUN-05）。
@@ -135,22 +138,57 @@ public class MainController {
 
     private void showResult(ExecutionResult result) {
         executeButton.setDisable(false);
-        statusLabel.setText(result.isSuccess() ? "執行成功：" + result.message() : result.message());
         errors.setAll(result.errors());
 
         if (result.isSuccess()) {
-            StringBuilder text = new StringBuilder();
-            for (Path path : result.outputFiles()) {
-                text.append("產出：").append(path.toAbsolutePath()).append(System.lineSeparator());
-            }
-//            var calculation = result.calculation();
-//            text.append("共保保費 %,d｜攤付共保賠款 %,d｜共保管理費 %,d｜Balance Due %,d".formatted(
-//                    calculation.totalPremium(), calculation.totalClaim(),
-//                    calculation.totalManagementFee(), calculation.balanceDue()));
-            outputLabel.setText(text.toString());
+            statusLabel.setText("執行成功");
+            outputLabel.setText(describeSuccess(result));
         } else {
+            // 中止之顯示維持原樣：失敗時使用者需要完整原因，不得簡化
+            statusLabel.setText(result.message());
             outputLabel.setText("報表皆未產出；詳見 ./logs/report.json");
         }
+    }
+
+    /**
+     * 成功訊息（R-RUN-05）——只交代<b>用了哪些匯入檔</b>與<b>產出了哪些報表</b>。
+     *
+     * <p>金額摘要、備份清單、逐張報表之產出說明均<b>不</b>上畫面，那些是主控台與
+     * {@code logs/report.json} 的職責；畫面上的數字容易被當成對帳依據。
+     *
+     * <p>保費檔缺檔（P-12）不別立警語，而是靠「未提供」一行與產出清單自行顯現——
+     * 匯入檔沒列到、共保月帳單也沒列到，就是完整的事實。
+     */
+    private static String describeSuccess(ExecutionResult result) {
+        List<ExecutionReport.InputFile> inputFiles = result.report().getInputFiles();
+        StringBuilder text = new StringBuilder();
+
+        String used = fileNames(inputFiles, true);
+        text.append("匯入檔：").append(used.isEmpty() ? "（無）" : used);
+        String missing = fileNames(inputFiles, false);
+        if (!missing.isEmpty()) {
+            text.append("；未提供：").append(missing);
+        }
+
+        List<Path> outputs = result.outputFiles();
+        if (outputs.isEmpty()) {
+            return text.append(System.lineSeparator()).append("本次未產出任何報表").toString();
+        }
+        text.append(System.lineSeparator())
+                .append("產出報表 %d 份（%s）：".formatted(
+                        outputs.size(), outputs.get(0).toAbsolutePath().getParent()));
+        for (Path path : outputs) {
+            text.append(System.lineSeparator()).append("　　").append(path.getFileName());
+        }
+        return text.toString();
+    }
+
+    /** 依存在與否篩選匯入檔名（不含路徑）。 */
+    private static String fileNames(List<ExecutionReport.InputFile> inputFiles, boolean exists) {
+        return inputFiles.stream()
+                .filter(file -> file.exists() == exists)
+                .map(ExecutionReport.InputFile::fileName)
+                .collect(Collectors.joining("、"));
     }
 
     private Integer parseOptional(String text, String label) {
